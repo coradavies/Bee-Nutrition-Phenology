@@ -1,0 +1,25 @@
+The following is information on data used to construct bradford curves to determine protein concentration in pollen samples.
+
+Bradford_PR_1 - collected 09/07/2021
+Bradford_PR_2 - collected 09/07/2021
+Bradford_PR_3 - collected 09/08/2021
+	- contains raw data from plate reader read at 595 nm. 
+
+BradfordAssay1
+BradfordAssay2
+BradfordAssay3
+	- Date: date data was collected
+	- Plate: plate number
+	- Sample: sample number
+	- Species: floral species sample was collected from
+	- Mass: mass of pollen (ug)
+	- Count: number of flowers pollen was collected from
+	- Pollen: amount of pollen added to well (ul)
+	- Water: amount of water added to well (ul)
+	- Reading: absorbance value read at 595 nm
+
+StandardCurve1
+StandardCurve2
+StandardCurve3
+	- Concentration: known protein concentration of standard
+	- Reading: absorbance value read at 595 nm

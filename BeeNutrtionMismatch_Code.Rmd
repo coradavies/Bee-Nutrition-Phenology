@@ -1,0 +1,1944 @@
+---
+title: "Mismatch of Bees & Nutrition"
+author: "Cora Davies"
+date: "10/31/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(hrbrthemes)
+library(vegan)
+library(corrplot)
+library(RColorBrewer)
+library(bipartite)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(rstatix)
+library(nplr)
+library(ggtern)
+library(bipartite)
+
+```
+
+###DATA ANALYSIS    
+
+This R markdown document contains the analyses conducted for _Temporal overlap of native bee assemblages with pollen protein density in forest canopy gaps is mediated by bee body size_ (Davies & Davis, 2022).
+
+## Calculate Bradford Standard Curves
+
+First calculate the Standard curves:
+
+```{r}
+###Create model
+
+#import data
+Standard1 <-read.csv("Bradford/StandardCurve1.csv") #Contains concentration (ug/ml) and readings
+
+Standard2 <-read.csv("Bradford/StandardCurve2.csv") #Contains concentration (ug/ml) and readings
+
+Standard3 <-read.csv("Bradford/StandardCurve3.csv") #Contains concentration (ug/ml) and readings
+
+#model (second order polynomial) 
+model1 = lm(Reading~poly(Concentration,2, raw=TRUE), data = Standard1)
+summary(model1)
+
+model2 = lm(Reading~poly(Concentration,2, raw=TRUE), data = Standard2)
+summary(model2)
+
+model3 = lm(Reading~poly(Concentration,2, raw=TRUE), data = Standard3)
+summary(model3)
+
+#Visualize
+
+ggplot(Standard1, aes(x = Concentration, y = Reading)) + geom_point() + stat_smooth(method = "lm", formula = y ~ poly(x, 2), size = 1)
+
+ggplot(Standard2, aes(x = Concentration, y = Reading)) + geom_point() + stat_smooth(method = "lm", formula = y ~ poly(x, 2), size = 1)
+
+ggplot(Standard3, aes(x = Concentration, y = Reading)) + geom_point() + stat_smooth(method = "lm", formula = y ~ poly(x, 2), size = 1)
+
+```
+
+
+## Predict protein concentration for samples
+
+First we have to create a quadratic formula so we can solve for x (Concentration) at the given readings. 
+```{r}
+## Quadratic formula:
+
+# Quadratic Formula In R:
+
+# Adapted from: http://stackoverflow.com/questions/15589601/print-string-and-variable-contents-on-the-same-line-in-r
+
+# Quadratic equation form of ax^2 + bx + c
+
+# Written to only return the positive root 
+
+quadraticRoots <- function(a, b, c) {
+
+  discriminant <- (b^2) - (4*a*c)
+
+  if(discriminant < 0) {
+    return(paste0("This quadratic equation has no real numbered roots."))
+  }
+  else if(discriminant > 0) {
+    x_int_plus <- (-b + sqrt(discriminant)) / (2*a)
+
+    return(paste0(format(round(x_int_plus, 5), nsmall = 5)))
+  }
+  else #discriminant = 0  case
+    x_int <- (-b) / (2*a)
+    return(paste0(x_int))
+}
+
+```
+
+Once we have an equation to return the x values at given y values then we can solve for the unknown concentrations. 
+
+```{r, warning=FALSE}
+
+#import data with readings from pollen samples
+Bradford1 <-read.csv("Bradford/BradfordAssay1.csv")
+
+Bradford2 <-read.csv("Bradford/BradfordAssay2.csv")
+
+Bradford3 <-read.csv("Bradford/BradfordAssay3.csv")
+
+#solve for x=concentration for the readings using the equation generated from the linear model
+
+#Model 1: (a=-0.00007536, b=0.007403, c=0.1144)
+#Model 2: (a=-0.00006279, b=0.006819, c=0.1182)
+#Model 3: (a=-0.00005061, b=0.006136, c=0.1304)
+
+# Adding column based on other column:
+#adds new column with the concentrations
+Bradford1 <- Bradford1 %>%
+  mutate(Concentration = 
+           quadraticRoots(-0.00007536, 0.007403, (0.1144-Reading)))
+
+Bradford2 <- Bradford2 %>%
+  mutate(Concentration = 
+           quadraticRoots(-0.00006279, 0.006819, (0.1182-Reading)))
+
+Bradford3 <- Bradford3 %>%
+  mutate(Concentration = 
+           quadraticRoots(-0.00005061, 0.006136, (0.1304-Reading)))
+```
+Finally we create a new data frame and save it as a csv so that it can be used in other analyses:
+
+```{r}
+#join the data using dplyr 
+    FloralProtein<- bind_rows(Bradford1, Bradford2, Bradford3)
+
+#Fix the concentration values that don't make sense. 
+  #Use a linear model of the NaN = >50
+model2_linear = lm(Reading~Concentration, data = Standard2)
+model3_linear = lm(Reading~Concentration, data = Standard3)
+
+  #assign new values
+FloralProtein[131, 10] = ((0.455-0.1302541)/0.0037969)
+FloralProtein[132, 10] = ((0.355-0.1302541)/0.0037969)
+FloralProtein[159, 10] = ((0.321-0.1400846)/0.0037001)
+  
+  #Negative number = Not detectable (0)
+FloralProtein[154, 10] = 0
+FloralProtein[155, 10] = 0
+FloralProtein[174, 10] = 0
+FloralProtein[199, 10] = 0
+FloralProtein[202, 10] = 0
+
+#Add row to for the pollen mass per flower (FlowerMass)
+FloralProtein <- FloralProtein %>%
+  mutate(FlowerMass = (Mass/Count))
+
+#Add row to for the protein content per flower (FlowerProtein)
+#make sure data is numeric 
+FloralProtein <- transform(FloralProtein,
+                             Concentration = as.numeric(Concentration))
+Protein_all <- FloralProtein %>%
+  mutate(FlowerProtein = (FlowerMass*Concentration))
+
+##create data with mean values only
+
+#Calculate means
+FloralProtein_Means <- Protein_all %>% select(c(Species,Mass,Concentration,Count,FlowerMass,FlowerProtein))
+
+FloralProtein_Means<- FloralProtein_Means %>% group_by(Species) %>%
+       mutate(Mass_Mean = mean(Mass)) %>%
+       mutate(Concentration_Mean=mean(Concentration)) %>%
+       mutate(Count_Mean=mean(Count)) %>%
+       mutate(FlowerMass_Mean=mean(FlowerMass)) %>%
+       mutate(FlowerProtein_Mean=mean(FlowerProtein))
+
+#select only desired columns
+FloralProtein_Means<- FloralProtein_Means %>% select(c(Species,Mass_Mean,Concentration_Mean,Count_Mean,FlowerMass_Mean,FlowerProtein_Mean))
+
+#remove duplicates (so there is only one row per species)
+Protein <- FloralProtein_Means %>% 
+  distinct()
+
+```
+
+
+## Data analyses 
+
+a) Phenology of floral availability, pollen protein, and bee-flower interactions
+
+```{r}
+#Import data
+
+Abundance <- read.csv("FloralAbundance.csv")
+Abundance$Site<-as.factor(Abundance$Site)
+
+FloralTraits <- read.csv("FloralMeasurements.csv")
+
+SiteInfo <- read.csv("SiteInformation.csv")
+SiteInfo$Site<-as.factor(SiteInfo$Site) #site as factor
+SiteInfo <- SiteInfo %>% select(Site, Size) #only need site number and size
+
+Bees <- read.csv("BeeCaptures.csv")
+Bees$Site<-as.factor(Bees$Site) #site as factor
+
+BeeTraits <- read.csv("GenusTraits.csv")
+
+#add bee traits to bees
+
+Bees<-left_join(Bees, BeeTraits, by="Genus")
+
+#color blind friendly color palette
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+```
+
+## Phenology and patch size
+The first objective is to analyze flower and bee phenology over a patch size gradient. 
+
+# Floral phenology
+
+FigS2a Phenology of floral density relative to patch size
+
+```{r}
+#Calculate summary data for floral abundance (average count/m^2) for each species at each sampling interval 
+
+AbunSum <- Abundance %>% group_by(Site, Day, Species) %>% 
+  summarize(Count = sum(Count))
+
+AbunSum <- AbunSum %>%
+  mutate(Density=Count/75)
+
+AbunSum2 <- left_join(AbunSum, SiteInfo, by="Site")
+
+#summarized (across all species)
+
+AbunSum2 <- AbunSum2 %>% 
+  group_by(Site, Day, Size) %>% 
+  summarize(Abundance = sum(Count),
+            Density=sum(Density))
+
+#plot the data 
+
+S1a<- AbunSum2 %>%
+  ggplot(aes(x=Day, y=Density)) +
+      geom_line(aes(group=Site), colour="grey40", alpha=.25) +
+  geom_smooth(colour="black") +
+  ylab(expression(Floral~Density~(flowers/m^2))) +
+  xlab("Day of Year") +
+  theme_classic()
+
+m1<- lm(Density~ Day * Size, data=AbunSum2)
+anova(m1)
+
+m1_2<- lmer(Density~ Day * Size + (1|Site), data=AbunSum2)
+anova(m1_2)
+
+
+S2a<- ggscatter(AbunSum2,x="Size",y="Density",
+                   palette=("#E69F00"),
+              add="reg.line",
+              conf.int =TRUE)+
+  ylab(expression(Floral~density~(count/m^2)))+
+  xlab("Canopy gap size (ha)")+
+  theme(legend.title = element_blank())
+
+```
+
+FigS2b Phenology of floral richness relative to patch size
+FigS2c Phenology of floral diversity relative to patch size
+
+```{r}
+
+#calculate floral richness
+Floralrich<-subset(Abundance, Species != "None") 
+Floralrich<- Floralrich %>% group_by(Site, Day) %>%
+  summarize(Richness = length(unique(Species)))
+Floralrich2 <- left_join(Floralrich, SiteInfo, by=c("Site")) #add site size
+
+#Calculate floral diversity
+floralspecies<-subset(Abundance, Species != "None") 
+
+floralspecies<- floralspecies %>% group_by(Site, Day, Species) %>% summarize(Abundance = sum(Count))
+
+Floralmatrix <- floralspecies %>%
+  spread(key = Species, value = Abundance)
+
+Floralmatrix<- Floralmatrix %>%
+  mutate_all(funs(ifelse(is.na(.), 0, .)))#change NA cells to 0
+
+diversity <- left_join(Floralmatrix, SiteInfo, by=c("Site")) #add site size
+
+#Calculate and add diversity to the existing ‘diversity’ data frame
+diversity$Shannon=vegan::diversity(diversity[c(3:85)], index="shannon")
+
+#plot the data 
+
+S1b<- Floralrich2 %>%
+  ggplot( aes(x=Day, y=Richness)) +
+      geom_line(aes(group=Site), colour="grey40", alpha=.25) +
+  geom_smooth(colour="black") +
+  ylab("Floral Species Richness") +
+  xlab("Day of Year") +
+  theme_classic()
+
+m2<- lm(Richness~ Day * Size, data=Floralrich2)
+anova(m2)
+
+m2_2<- lmer(Richness~ Day * Size + (1|Site), data=Floralrich2)
+anova(m2_2)
+
+S2b<- ggscatter(Floralrich2,x="Size",y="Richness",
+                   palette=("#E69F00"),
+              add="reg.line",
+              conf.int =TRUE)+
+  ylab(expression(Floral~richness))+
+  xlab("Canopy gap size (ha)")+
+  theme(legend.title = element_blank())
+
+
+S1c<- diversity %>%
+  ggplot( aes(x=Day, y=Shannon)) +
+geom_line(aes(group=Site), colour="grey40", alpha=.25) +
+  geom_smooth(colour="black") +
+  ylab("Floral Diversity (Shannon H')") +
+  xlab("Day of Year") +
+  theme_classic()
+
+m3<- lm(Shannon~ Day * Size, data=diversity)
+anova(m3)
+
+m3_2<- lmer(Shannon~ Day * Size + (1|Site), data=diversity)
+anova(m3_2)
+
+S2c<- ggscatter(diversity,x="Size",y="Shannon",
+                   palette=("#E69F00"),
+              add="reg.line",
+              conf.int =TRUE)+
+  ylab("Floral diversity (Shannon H')")+
+  xlab("Canopy gap size (ha)")+
+  theme(legend.title = element_blank())
+
+```
+
+FigS2d Phenology of protein density relative to patch size
+
+```{r}
+
+#calculate protein density
+
+#Floral protein data with only Species and FlowerProtein_Mean (ug protein/flower)
+Protein2<- Protein %>% 
+  select(c("Species", "FlowerProtein_Mean"))
+
+#make list of data
+data_list <- list(AbunSum, Protein2)     
+#merge data
+MeadowProtein<-data_list %>% reduce(inner_join, by = "Species")  
+
+MeadowProtein <- left_join(MeadowProtein, SiteInfo, by=c("Site")) #add site size
+
+#Calculate protein content density at each meadow 
+
+#protein density per floral species
+MeadowProtein <- MeadowProtein %>% 
+  group_by(Site, Day, Species, Size) %>% 
+  summarize(ProteinDensity = Density*FlowerProtein_Mean)
+
+#summarized (total protein density-sum across all species)
+
+MeadowProtein <- MeadowProtein %>% 
+  group_by(Site, Day, Size) %>% 
+  summarize(ProteinDensitySum = sum(ProteinDensity),
+            ProteinDensitySum2 = log(sum(ProteinDensity)))
+
+#plot the data 
+
+S1d<- MeadowProtein %>%
+  ggplot( aes(x=Day, y=ProteinDensitySum2)) +
+ geom_line(aes(group=Site), colour="grey40", alpha=.25) +
+  geom_smooth(colour="black") +
+  ylab(expression(Log~site~protein~density~(ug/m^2))) +
+  xlab("Day of Year") +
+  theme_classic()
+
+m4<- lm(ProteinDensitySum2~ Day * Size, data=MeadowProtein)
+anova(m4)
+
+m4_2<- lmer(ProteinDensitySum2~ Day * Size + (1|Site), data=MeadowProtein)
+anova(m4_2)
+
+S2d<- ggscatter(MeadowProtein,x="Size",y="ProteinDensitySum2",
+                   palette=("#E69F00"),
+              add="reg.line",
+              conf.int =TRUE)+
+  ylab(expression(Log~site~protein~density~(ug/m^2)))+
+  xlab("Canopy gap size (ha)")+
+  theme(legend.title = element_blank())
+
+#combine all into one figure 
+
+S1<- ggarrange(S1a, S1b, S1c, S1d,
+                    labels = "auto",
+                    ncol = 2, nrow = 2, common.legend=TRUE,legend="bottom")
+
+ggsave("S1_800.tiff", width = 8, height = 8, device='tiff', dpi=800)
+
+S2<- ggarrange(S2a, S2b, S2c, S2d,
+                    labels = "auto",
+                    ncol = 2, nrow = 2, common.legend=TRUE,legend="bottom")
+
+ggsave("S2_800.tiff", width = 8, height = 8, device='tiff', dpi=800)
+
+```
+
+# Bee phenology
+
+FigS4a Phenology of bee abundance relative to patch size
+
+```{r}
+#Calculate summary data for bee abundance (average count/m^2) for each species at each sampling interval 
+
+#add number for interactions and none as 0
+Bees2 <- Bees %>% 
+  mutate(Count = if_else(Flower==Bee, 0, 1))
+  
+#calculate abundance
+Beeab <- Bees2 %>% group_by(Site, Day) %>% 
+  summarise(Abundance = sum(Count))
+
+Beeab2 <- left_join(Beeab, SiteInfo, by="Site")
+
+#plot the data 
+
+S3a<- Beeab2 %>%
+  ggplot(aes(x=Day, y=Abundance)) +
+ geom_line(aes(group=Site), colour="grey40", alpha=.25) +
+  geom_smooth(colour="black") +
+  ylab("Bee Abundance") +
+  xlab("Day of Year") +
+  theme_classic()
+
+m5<- lm(Abundance~ Day * Size, data=Beeab2)
+anova(m5)
+
+m5_2<- lmer(Abundance~ Day * Size + (1|Site), data=Beeab2)
+anova(m5_2)
+
+S4a<- ggscatter(Beeab2,x="Size",y="Abundance",
+                   palette=("#E69F00"),
+              add="reg.line",
+              conf.int =TRUE)+
+  ylab("Bee-flower interactions")+
+  xlab("Canopy gap size (ha)")+
+  theme(legend.title = element_blank())
+
+```
+b) Phenology of bee richness relative to patch size
+c) Phenology of bee diversity relative to patch size
+
+```{r}
+
+#calculate bee richness
+Bees3<- Bees %>% filter(Bee != "None") #remove none
+Beerich <- Bees3 %>% group_by(Site, Day) %>%
+  summarize(Richness = length(unique(Bee)))
+Beerich <- left_join(Beerich, SiteInfo, by=c("Site")) #add site size
+Beerich <- Beerich %>% as.data.frame() %>%
+  add_row(Site = c('5', '7', '8'), Day = c(255, 255, 255), Richness = c(0,0,0), Size = c(0.83, 0.45, 0.16)) #add zeros
+
+#Calculate bee diversity
+
+#create matrix by site-day
+Beediversity<- Bees3 %>% group_by(Site, Day, Bee) %>%
+  summarize(Count = n()) %>%
+  spread(key = Bee, value = Count) %>%
+  mutate_all(funs(ifelse(is.na(.), 0, .))) #change NA cells to 0
+Beediversity <- left_join(Beediversity, SiteInfo, by=c("Site")) #add site size
+
+#Calculate and add diversity to the existing ‘Beediversity’ data frame
+Beediversity$Shannon=vegan::diversity(Beediversity[c(3:50)], index="shannon")
+Beediversity <- Beediversity %>% as.data.frame() %>%
+  add_row(Site = c('5', '7', '8'), Day = c(255, 255, 255), Shannon = c(0,0,0), Size = c(0.83, 0.45, 0.16)) #add zeros
+
+#plot the data 
+
+S3b<- Beerich %>%
+  ggplot(aes(x=Day, y=Richness)) +
+ geom_line(aes(group=Site), colour="grey40", alpha=.25) +
+  geom_smooth(colour="black") +
+  ylab("Bee Species Richness") +
+  xlab("Day of Year") +
+  theme_classic()
+
+m6<- lm(Richness~ Day * Size, data=Beerich)
+anova(m6)
+
+m6_2<- lmer(Richness~ Day * Size + (1|Site), data=Beerich)
+anova(m6_2)
+
+S4b<- ggscatter(Beerich,x="Size",y="Richness",
+                   palette=("#E69F00"),
+              add="reg.line",
+              conf.int =TRUE)+
+  ylab("Bee richness")+
+  xlab("Canopy gap size (ha)")+
+  theme(legend.title = element_blank())
+
+S3c<- Beediversity %>%
+  ggplot( aes(x=Day, y=Shannon)) +
+ geom_line(aes(group=Site), colour="grey40", alpha=.25) +
+  geom_smooth(colour="black") +
+  ylab("Bee Diversity (Shannon H')") +
+  xlab("Day of Year") +
+  theme_classic()
+
+m7<- lm(Shannon~ Day * Size, data=Beediversity)
+anova(m7)
+
+m7_2<- lmer(Shannon~ Day * Size + (1|Site), data=Beediversity)
+anova(m7_2)
+
+S4c<- ggscatter(Beediversity,x="Size",y="Shannon",
+                   palette=("#E69F00"),
+              add="reg.line",
+              conf.int =TRUE)+
+  ylab("Bee diversity (Shannon H')")+
+  xlab("Canopy gap size (ha)")+
+  theme(legend.title = element_blank())
+
+#combine all into one figure 
+
+S3<- ggarrange(S3a, S3b, S3c,
+                    labels = "auto",
+                    ncol = 2, nrow = 2, common.legend=TRUE,legend="bottom")
+
+ggsave("S3_800.tiff", width = 8, height = 8, device='tiff', dpi=800)
+
+S4<- ggarrange(S4a, S4b, S4c,
+                    labels = "auto",
+                    ncol = 2, nrow = 2, common.legend=TRUE,legend="bottom")
+
+ggsave("S4_800.tiff", width = 8, height = 8, device='tiff', dpi=800)
+
+
+```
+
+#Chi-square test for body size vs. time and meadow size
+
+```{r, warning=F}
+#bee body size versus time (sample period)
+beesize_time <- Bees3 %>% 
+  group_by(Sample, BodySize) %>% 
+  summarize(IntTotal = length(unique(ID)))
+
+beesize_time$Date <- c("May 21", "May 21", "May 21", 
+                       "June 3", "June 3", "June 3", 
+                       "June 18", "June 18", "June 18", 
+                       "July 1", "July 1", "July 1", 
+                       "July 14","July 14","July 14", 
+                       "July 28","July 28","July 28", 
+                       "Aug. 11", "Aug. 11", "Aug. 11", 
+                       "Aug. 21","Aug. 21","Aug. 21", 
+                       "Sept. 12","Sept. 12","Sept. 12")
+
+#visualize
+fig3a<- ggplot(beesize_time, aes(x = as.factor(Date), y = IntTotal, fill = BodySize)) + 
+  geom_histogram(stat = "identity", position = "fill") +
+  xlab("Sample date") +
+  ylab("Percent abundance (%)") +
+  scale_fill_manual(values=cbPalette)+
+  theme_classic()
+
+#test
+beesize_time <- beesize_time %>%
+  spread(key = BodySize, value = IntTotal)
+
+beesize_time$Sample <- as.factor(beesize_time$Sample)
+beesize_time[is.na(beesize_time)] <- 0
+
+chisq.test(beesize_time[3:5])
+
+    
+#bee body size versus meadow size
+beesize_meadowsize <- Bees3 %>% 
+  group_by(Site, BodySize) %>% 
+  summarize(IntTotal = length(unique(ID)))
+
+beesize_meadowsize <- left_join(beesize_meadowsize, SiteInfo, by="Site")
+
+#visualize
+fig3b<- ggplot(beesize_meadowsize, aes(x = as.factor(Size), y = IntTotal, fill = BodySize)) + 
+  geom_histogram(stat = "identity", position = "fill") +
+  xlab("Canopy gap size (ha)") +
+  ylab("Percent abundance (%)") +
+  scale_fill_manual(values=cbPalette)+
+  theme_classic()
+
+#Test
+beesize_meadowsize <- beesize_meadowsize %>%
+  spread(key = BodySize, value = IntTotal)
+
+chisq.test(beesize_meadowsize[3:5])
+
+figure3<- ggarrange(fig3a, fig3b,
+                    labels = "auto",
+                    ncol = 1, nrow = 2, common.legend=TRUE,legend="right")
+
+ggsave("Fig3_800.tiff", width = 6, height = 5.5, device='tiff', dpi=800)
+
+```
+
+### Bee-Flower Interactions
+
+Create a table for list of plant species and their nutritional values (with columns also for total interactions and unique interactions).
+
+```{r}
+
+# concentration of protein in each species
+nutrition <- Protein_all %>% select(c("Species", "Concentration"))
+nutrition <- nutrition %>% rename(Flower=Species)
+nutrition <- nutrition %>% group_by(Flower) %>%
+  summarize(n = n(),
+            concentration = mean(Concentration),
+            sd = sd(Concentration),
+            se=sd/sqrt(n))
+
+
+# calculate interactions 
+flowerI <- Bees3 %>% group_by(Flower, Bee) %>% summarize(IntTotal = length(unique(ID)))
+
+flowerI <- flowerI %>% group_by(Flower) %>% summarize(IntTotal = sum(IntTotal), IntRich = n())
+
+#merge data frames
+table1<- merge(x = nutrition, y = flowerI, all = TRUE)
+
+```
+#Pollinator importance index
+Formula to normalize data between 0 and 1 :
+Transformed.Values=Values−Minimum/Maximum−Minimum
+
+```{r}
+#normalize data 
+  #select only columns of interest
+index<- table1 %>%
+  select(c(Flower, concentration, IntTotal, IntRich))
+  #remove species where protein concentration was not measured
+index <- index[!is.na(index$concentration),]
+  #replace NA values in interactions with 0
+index[is.na(index)] <- 0
+  #normalize
+Sum<- index %>%  
+  summarize( min1 = min(concentration),
+             min2 = min(IntTotal),
+             min3 = min(IntRich),
+             max1 = max(concentration),
+             max2 =max(IntTotal),
+             max3 =max(IntRich))
+
+index_norm <- transform(index, concentration = (concentration-Sum$min1)/(Sum$max1-Sum$min1),
+                          IntTotal = (IntTotal-Sum$min2)/(Sum$max2-Sum$min2),
+                          IntRich = (IntRich-Sum$min3)/(Sum$max3-Sum$min3))
+
+#multiply protein, IntTotal, and IntRich
+index_norm <- index_norm %>% 
+  mutate(index=concentration*IntTotal*IntRich)
+
+#add native/invasive status to df
+status<- FloralTraits %>% rename(Flower=Species)
+status<- status %>% select(Flower, Status)
+status<- unique(status)
+index_norm <- left_join(index_norm, status, by="Flower")
+
+#add pollinator important index to table 1
+#merge data frames
+index_norm2 <- index_norm %>% select(c(Flower, index))
+table1<- merge(x = table1, y = index_norm2, all = TRUE)
+
+#Order by most important species (highest index)
+index2 <- index_norm[order(-index_norm$index), ]
+  #grouping
+index2$group <- "not important"
+index2$group[1:5] = "important"
+  #add short names
+index2$Names <- "name"
+index2$Names[1:5] = c("CADU4", "HEVI4", "LUAR3", "GECA3", "CAGU")
+
+#visualize index (ternary plot)
+
+Fig6 <- index2 %>%
+  ggtern(aes(x = concentration, y = IntTotal, z = IntRich, label=Names)) +
+  geom_point(size=2, aes(fill=Status, color=Status)) +
+  geom_point(data=index2[index2$group == "important",], size=4, shape=18,
+             aes(color=Status)) +
+   geom_text(check_overlap = TRUE, size=4,
+             aes(label=ifelse(group=="important",as.character(Names),'')),
+             hjust=0,vjust=0) +
+  geom_text(check_overlap = FALSE, size=4,
+             aes(label=ifelse(Names=="GECA3",as.character(Names),'')),
+             hjust=1,vjust=0) +
+  labs(x= "", 
+       xarrow= "Protein concentration", 
+       y = "", 
+       yarrow = "Interaction abundance", 
+       z="", 
+       zarrow="Interaction richness")+
+  theme_latex(TRUE) + 
+  theme_bw() +
+theme_arrownormal() + 
+ scale_colour_manual(values=cbPalette) 
+
+#UPDATED FIGURE
+Fig6 <- index2 %>%
+  ggtern(aes(x = concentration, y = IntTotal, z = IntRich, label=Names)) +
+  geom_point(size=2, aes(fill=Status, color=Status)) +
+  geom_point(data=index2[index2$group == "important",], size=4, shape=18,
+             aes(color=Status)) +
+  annotate(geom = 'text',
+           x = c(0.228, 0.483, 0.145, 0.114, 0.161),
+           y = c(1, 0.372, 0.754, 0.611, 0.309),
+           z = c(0.714, 0.642, 1, 0.893, 0.714),
+           angle = c(0, 0, 0, 0, 0),
+           vjust = c(0, 0, 0, 1, 0),
+           hjust = c(1, 1, 1, 1, 1),
+           label = paste(c("CADU4", "LUAR3", "HEVI4", "GECA3", "CAGU"))) +
+  labs(x= "", 
+       xarrow= "Protein concentration", 
+       y = "", 
+       yarrow = "Interaction abundance", 
+       z="", 
+       zarrow="Interaction richness")+
+  theme_latex(TRUE) + 
+  theme_bw() +
+theme_arrownormal() + 
+ scale_colour_manual(values=cbPalette) 
+
+ggsave("Fig6_800.tiff", width = 13, height = 5, device='tiff', dpi=800)
+
+#pollinator importance index distribution
+ggplot(index2, aes(x=index)) + geom_density()
+
+
+```
+
+# Create model
+
+```{r}
+# Table 2
+
+#calculate total interactions
+
+vars_I <- Bees3 %>% group_by(Site, Day, Sample, Flower, Bee) %>% summarize(IntTotal = length(unique(ID)))
+
+#calculate unique interactions
+
+vars_I <- vars_I %>% group_by(Site, Day, Sample) %>% summarize(IntTotal = sum(IntTotal), IntRich = n())
+
+#add missing values
+
+df1 <- data.frame(Site=c('5', '7', '8'),
+                  Day=c(255, 255, 255),
+                  Sample=c(9, 9, 9),
+                  IntTotal=c(0, 0, 0),
+                  IntRich=c(0, 0, 0))
+
+vars_I <- rbind(vars_I, df1)
+
+#add floral density and richness
+F_density <- subset(Abundance, Species != "None") 
+
+F_density <- F_density %>% group_by(Site, Sample) %>% 
+  summarize(FloralDensity = sum(Count)/75, FloralRichness = length(unique(Species)))
+
+vars_I <- merge(x = vars_I, y = F_density, by=c("Site","Sample"), all = TRUE)
+
+#add protein meadow density and meadow size
+  #change day to sample number
+P_density<- MeadowProtein
+P_density$Day <- rep_len(1:9, length.out=72)
+P_density<- P_density %>% rename(Sample=Day)
+
+vars_I <- merge(x = vars_I, y = P_density, by=c("Site","Sample"), all = TRUE)
+
+#model
+m8 <- lmer(IntTotal ~ FloralDensity + FloralRichness + ProteinDensitySum2 + Size + (1|Sample), 
+            data=vars_I)
+
+summary(m8)
+
+##
+
+m9 <- lmer(IntRich ~ FloralDensity + FloralRichness + ProteinDensitySum2 + Size + (1|Sample), 
+            data=vars_I)
+
+summary(m9)
+
+#Visualize significant relationships
+
+fig7a<- ggscatter(vars_I,x="ProteinDensitySum2",y="IntTotal",
+                   palette=("#E69F00"),
+              add="reg.line",
+              conf.int =TRUE)+
+  ylab("Interaction abundance")+
+  xlab(expression(Log~site~protein~density~(ug/m^2)))+
+  theme(legend.title = element_blank())
+
+fig7b<- ggscatter(vars_I,x="FloralRichness",y="IntRich",
+                   palette=("#E69F00"),
+              add="reg.line",
+              conf.int =TRUE)+
+  ylab("Interaction richness")+
+  xlab("Floral richness")+
+  theme(legend.title = element_blank())
+
+#combine all into one figure 
+
+fig7<- ggarrange(fig7a, fig7b,
+                    labels = "auto",
+                    ncol = 1, nrow = 2, common.legend=TRUE,legend="bottom")
+
+ggsave("Fig7_800.tiff", width = 6, height = 8, device='tiff', dpi=800)
+
+```
+
+# Floral visual traits
+
+Preparing data set: 
+```{r}
+# calculate interactions by site-sample
+flowerI2 <- Bees3 %>% group_by(Flower, Bee, Site, Sample) %>% summarize(IntTotal = length(unique(ID)))
+
+flowerI2 <- flowerI2 %>% group_by(Flower, Site, Sample) %>% summarize(IntTotal = sum(IntTotal), IntRich = n())
+
+#Add spatial temporal data (floral abundance/relative abundance)
+AbunSum3 <- Abundance %>% group_by(Site, Sample, Species) %>% 
+  summarize(Count = sum(Count))
+AbunSum3 <- AbunSum3 %>%
+  mutate(Density=Count/75)
+AbunSum3 <- rename(AbunSum3, Flower = Species)
+AbunSum3<-subset(AbunSum3, Flower != "None") 
+
+#calculating relative abundance
+TotalAb<-AbunSum3 %>% group_by(Sample,Site)%>%
+  summarise(Total=sum(Count))
+AbunSum3 <- left_join(AbunSum3, TotalAb, by=c("Sample","Site"))
+AbunSum3 <- AbunSum3 %>% mutate(Relative=(Count/Total))
+  #replace NA with 0
+  AbunSum3[is.na(AbunSum3)] <- 0
+  
+F_vars <- merge(flowerI2, AbunSum3, by=c("Site","Sample","Flower"), all=TRUE)
+F_vars[is.na(F_vars)] <- 0
+
+#Calculate means for floral traits
+FloralTraits1 <- FloralTraits %>% 
+  group_by(Species, UV, Color, Status) %>%
+  summarise(Height=mean(Height), Size=mean(Size), Red=mean(Red), Blue=mean(Blue), Green=mean(Green))
+
+#Add floral traits to interaction data
+FloralTraits1 <- rename(FloralTraits1, Flower = Species)
+F_vars <- left_join(F_vars, FloralTraits1, by="Flower")
+
+#Add protein to bee data
+Protein1 <- rename(Protein, Flower = Species)
+F_vars <- left_join(F_vars, Protein1, by="Flower")
+
+#add floral richness to data
+Floralrich3<-subset(Abundance, Species != "None") 
+Floralrich3<- Floralrich3 %>% group_by(Site, Sample) %>%
+  summarize(Floralrich = length(unique(Species)))
+F_vars <- left_join(F_vars, Floralrich3, by=c("Site","Sample"))
+
+```
+
+Q: Do bees visit flowers based on nutritional value, visual attraction, or availability/abundance?
+  - Create a model of interaction abundance and richness with difference values of visual traits, nutritional value, and floral availability.
+
+```{r}
+
+#Table 3
+
+#model total interactions
+drivers<- lmer(IntTotal~Color+Status+Size+Height+UV+
+               Concentration_Mean+
+               Density+Relative+(1|Sample)+(1|Site),
+             data=F_vars)
+summary(drivers)
+
+
+#model unique interactions
+drivers2<- lmer(IntRich~Color+Status+Size+Height+UV+
+               Concentration_Mean+
+               Density+Relative+(1|Sample)+(1|Site),
+             data=F_vars)
+summary(drivers2)
+
+#summarize variables
+color<-F_vars %>%
+  group_by(Color) %>%
+  summarise(IntTotal=mean(IntTotal),
+            IntRich=mean(IntRich))
+status<-F_vars %>%
+  group_by(Status) %>%
+  summarise(IntTotal=mean(IntTotal),
+            IntRich=mean(IntRich))
+UV<-F_vars %>%
+  group_by(UV) %>%
+  summarise(IntTotal=mean(IntTotal),
+            IntRich=mean(IntRich))
+
+#supplemental graphs
+#floral color
+S6a<- ggplot(F_vars, aes(x = Color, y = IntTotal, fill = Color)) +
+  geom_boxplot(aes(fill=Color))+ scale_fill_grey(start = .5, end = .9)+
+  xlab("Flower Color") +
+  ylim(0,130)+
+  ylab("Interaction Abundance") +
+  theme_classic()
+S6b<- ggplot(F_vars, aes(x = Color, y = IntRich, fill = Color)) +
+  geom_boxplot(aes(fill=Color))+ scale_fill_grey(start = .5, end = .9)+
+  xlab("Flower Color") +
+  ylim(0,20)+
+  ylab("Interaction Richness") +
+  theme_classic()
+S6<- ggarrange(S6a,S6b,
+               labels = "auto",
+               ncol = 1, nrow = 2, common.legend=TRUE,legend="right")
+```
+# Floral status versus network connectance
+
+```{r}
+#format data
+Interactions<- Bees3 %>% 
+  group_by(Site, Flower, Bee) %>% 
+  summarize(Count = length(unique(ID)))
+Interactions<- as.data.frame(Interactions) #convert to df
+
+#calculate c scores
+connectance <- sapply(frame2webs(Interactions,varnames=c("Flower","Bee","Site", "Count"),type.out="list"), networklevel, index=c("connectance", "C score"))
+  #reformat
+connectance <- connectance[-c(2,3), ]
+connectance <- as.data.frame(connectance)
+connectance$Site <- row.names(connectance) 
+
+#calculate percent invasive
+Invasive <- F_vars %>% group_by(Site, Status) %>%
+  summarize(Count=sum(Count))
+Invasive2 <- spread(Invasive,
+                        key = Status,
+                        value = Count)
+
+Invasive3 <- Invasive2 %>%
+  summarize(Invasive=Introduced/(Introduced+Native))
+
+#merge data
+con_inv <- merge(connectance, Invasive3, by="Site")
+
+#Plot
+ggscatter(con_inv,x="Invasive",y="connectance",
+                   palette=("#E69F00"),
+              add="reg.line",
+              conf.int =TRUE)+
+  ylab("Network connectance")+
+  xlab("% Invasive")+
+  theme(legend.title = element_blank())+
+  stat_cor(method = "pearson", label.x = 0, label.y = .11)  # Add correlation coefficient
+
+```
+
+
+
+# Bee functional traits
+
+H: Large body bees are less sensitive to patch size due to longer flight distances.
+
+- Calculate variable for each site-sample on the ratio of large:small body bees
+- Linear regression comparing correlation to patch size
+- Add to model above to test?
+
+```{r}
+
+# Calculate body size ratio
+  #total interactions
+vars_I2 <- Bees3 %>% 
+  group_by(Site, Day, Sample, Flower, Bee, BodySize) %>% 
+  summarize(IntTotal = length(unique(ID)))
+
+vars_I2 <- vars_I2 %>%
+  spread(key = BodySize, value = IntTotal)
+    
+vars_I2 <- vars_I2 %>%
+  mutate_all(funs(ifelse(is.na(.), 0, .))) #change NA cells to 0
+
+vars_I2 <- vars_I2 %>% 
+  group_by(Site, Day, Sample) %>% 
+  summarize(large = sum(large), 
+             mid = sum(mid),
+             small = sum(small))
+
+vars_I2 <- vars_I2 %>% 
+  group_by(Site, Day, Sample) %>% 
+  summarize(IntTotal = sum(large+mid+small), 
+            Ratio=(large/(small+mid)))
+
+#change infinity values (to same as IntTotal)
+
+vars_I2$Ratio[is.infinite(vars_I2$Ratio)] <- c(135,104,107,7)
+
+#add missing values
+
+df2 <- data.frame(Site=c('5', '7', '8'),
+                  Day=c(255, 255, 255),
+                  Sample=c(9, 9, 9),
+                  IntTotal=c(0, 0, 0),
+                  Ratio=c(0, 0, 0))
+
+vars_I2 <- rbind(vars_I2, df2)
+
+#add floral density and richness
+F_density <- subset(Abundance, Species != "None") 
+
+F_density <- F_density %>% group_by(Site, Sample) %>% 
+  summarize(FloralDensity = sum(Count)/75, FloralRichness = length(unique(Species)))
+
+vars_I2 <- left_join(vars_I2, F_density, by=c("Site","Sample"))
+
+#add protein meadow density and meadow size
+  #change day to sample number
+P_density<- MeadowProtein
+P_density$Day <- rep_len(1:9, length.out=72)
+P_density<- P_density %>% rename(Sample=Day)
+
+vars_I2 <- left_join(vars_I2, P_density, by=c("Site","Sample"))
+
+#model: relationship between meadow size and body size ratio over time
+
+m10<-lm(Ratio~Size*Sample, data=vars_I2)
+anova(m10)
+
+
+```
+
+
+# Phenological mismatch
+
+First, we need to prepare the data so that it is in the correct format. 
+
+```{r}
+###DATA PREPARATION###
+
+##Floral Protein
+#Calculate summary data for floral abundance (average count/m^2) for each species at each sampling interval 
+F_AbSum <- Abundance %>% group_by(Site, Day, Species) %>% 
+  summarize(Count = sum(Count))
+F_AbSum <- F_AbSum %>%
+  mutate(Density=Count/75)
+
+#Floral protein data with only Species and FlowerProtein_Mean (ug protein/flower)
+Protein2<- Protein %>% 
+  select(c("Species", "FlowerProtein_Mean"))
+
+#make list of data
+data_list <- list(F_AbSum, Protein2)     
+#merge data
+MeadowProtein<-data_list %>% reduce(inner_join, by = "Species")  
+
+#Calculate protein content density at each meadow 
+
+#protein density per floral species
+MeadowProtein <- MeadowProtein %>% 
+  group_by(Site, Day, Species) %>% 
+  summarize(ProteinDensity = Density*FlowerProtein_Mean)
+
+#summarized (total protein density-sum across all species)
+MeadowProtein <- MeadowProtein %>% 
+  group_by(Site, Day) %>% 
+  summarize(ProteinDensitySum = sum(ProteinDensity))
+
+##Bee (/bee-flower interaction) abundances
+  #Remove "None"
+  BeeAb<-subset(Bees, Bee!="None")
+  #Calculate summary data for bee abundance at each site and sample time 
+  B_AbSum <- BeeAb %>% group_by(Site, Day) %>% 
+    summarize(Abundance = length(unique(ID)))
+  #Add rows for missing data
+  miss<- data.frame(Site=c(5, 7, 8),
+                  Day=c(255, 255, 255),
+                  Abundance=c(0, 0, 0))
+  B_AbSum<- merge(x = B_AbSum, y = miss, all = TRUE)
+
+##Merge and subset by site 
+  #make list of data
+  data_list <- list(MeadowProtein, B_AbSum)     
+  #merge data
+  BeeProteinSum<-data_list %>% reduce(inner_join, by = c("Site","Day"))
+  
+##Calculate protein and bee abundances as ACCUMULATIONS 
+  #calculate totals
+ Totals<- BeeProteinSum %>%
+  group_by(Site) %>%
+  summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+BeeProteinSum_edit <- merge(BeeProteinSum, Totals, by="Site")
+  
+  #add cumulative sums
+BeeProteinSum_edit <- BeeProteinSum_edit %>% 
+  group_by(Site) %>%
+  mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+BeeProteinSum_edit <- BeeProteinSum_edit %>% 
+  mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc = cum_B/Total_B)
+  
+```
+
+Create logistic regression models using the `nplr` package.
+
+https://cran.r-project.org/web/packages/nplr/vignettes/nplr.pdf
+
+```{r}
+
+##Split data by site 
+siteList <- split(BeeProteinSum_edit, BeeProteinSum_edit$Site) #split by site
+
+## Create Models
+Model_Protein <- lapply(siteList, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+
+Model_Bee <- lapply(siteList, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc, silent = TRUE, useLog=FALSE)
+  })
+
+
+## Visualization (S5)
+Site1<- overlay(c(Model_Protein$`1`,Model_Bee$`1`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+                xlim = c(140, 256),
+                ylim = c(0, 1))
+
+Site2<- overlay(c(Model_Protein$`2`,Model_Bee$`2`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+                xlim = c(140, 256),
+                ylim = c(0, 1))
+
+Site3<- overlay(c(Model_Protein$`3`,Model_Bee$`3`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+                xlim = c(140, 256),
+                ylim = c(0, 1))
+
+Site4<- overlay(c(Model_Protein$`4`,Model_Bee$`4`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+                xlim = c(140, 256),
+                ylim = c(0, 1))
+
+Site5<- overlay(c(Model_Protein$`5`,Model_Bee$`5`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+                xlim = c(140, 256),
+                ylim = c(0, 1))
+
+Site6<- overlay(c(Model_Protein$`6`,Model_Bee$`6`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+                xlim = c(140, 256),
+                ylim = c(0, 1))
+
+Site7<- overlay(c(Model_Protein$`7`,Model_Bee$`7`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+                xlim = c(140, 256),
+                ylim = c(0, 1))
+
+Site8<- overlay(c(Model_Protein$`8`,Model_Bee$`8`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+                xlim = c(140, 256),
+                ylim = c(0, 1))
+
+```
+
+
+## Determining phenological mismatches
+
+50%
+```{r}
+#Site1
+P1_50<-getEstimates(Model_Protein$`1`, .5)
+B1_50<-getEstimates(Model_Bee$`1`, .5)
+#Site2
+P2_50<-getEstimates(Model_Protein$`2`, .5)
+B2_50<-getEstimates(Model_Bee$`2`, .5)
+#Site3
+P3_50<-getEstimates(Model_Protein$`3`, .5)
+B3_50<-getEstimates(Model_Bee$`3`, .5)
+#Site4
+P4_50<-getEstimates(Model_Protein$`4`, .5)
+B4_50<-getEstimates(Model_Bee$`4`, .5)
+#Site5
+P5_50<-getEstimates(Model_Protein$`5`, .5)
+B5_50<-getEstimates(Model_Bee$`5`, .5)
+#Site6
+P6_50<-getEstimates(Model_Protein$`6`, .5)
+B6_50<-getEstimates(Model_Bee$`6`, .5)
+#Site7
+P7_50<-getEstimates(Model_Protein$`7`, .5)
+B7_50<-getEstimates(Model_Bee$`7`, .5)
+#Site8
+P8_50<-getEstimates(Model_Protein$`8`, .5)
+B8_50<-getEstimates(Model_Bee$`8`, .5)
+
+
+
+#Subtract 50% estimates (protein-bee=mismatch)
+mismatch50<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50=c((P1_50$x-B1_50$x), (P2_50$x-B2_50$x), (P3_50$x-B3_50$x), 
+                      (P4_50$x-B4_50$x), (P5_50$x-B5_50$x), (P6_50$x-B6_50$x),
+                      (P7_50$x-B7_50$x),(P8_50$x-B8_50$x))
+)
+
+
+```
+
+
+33%
+```{r}
+#Site1
+P1_33<-getEstimates(Model_Protein$`1`, .33)
+B1_33<-getEstimates(Model_Bee$`1`, .33)
+#Site2
+P2_33<-getEstimates(Model_Protein$`2`, .33)
+B2_33<-getEstimates(Model_Bee$`2`, .33)
+#Site3
+P3_33<-getEstimates(Model_Protein$`3`, .33)
+B3_33<-getEstimates(Model_Bee$`3`, .33)
+#Site4
+P4_33<-getEstimates(Model_Protein$`4`, .33)
+B4_33<-getEstimates(Model_Bee$`4`, .33)
+#Site5
+P5_33<-getEstimates(Model_Protein$`5`, .33)
+B5_33<-getEstimates(Model_Bee$`5`, .33)
+#Site6
+P6_33<-getEstimates(Model_Protein$`6`, .33)
+B6_33<-getEstimates(Model_Bee$`6`, .33)
+#Site7
+P7_33<-getEstimates(Model_Protein$`7`, .33)
+B7_33<-getEstimates(Model_Bee$`7`, .33)
+#Site8
+P8_33<-getEstimates(Model_Protein$`8`, .33)
+B8_33<-getEstimates(Model_Bee$`8`, .33)
+
+
+
+#Subtract 33% estimates (protein-bee=mismatch)
+mismatch33<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33=c((P1_33$x-B1_33$x), (P2_33$x-B2_33$x), (P3_33$x-B3_33$x),
+                      (P4_33$x-B4_33$x), (P5_33$x-B5_33$x), (P6_33$x-B6_33$x),
+                      (P7_33$x-B7_33$x),(P8_33$x-B8_33$x))
+)
+
+```
+
+
+90%
+```{r}
+#Site1
+P1_90<-getEstimates(Model_Protein$`1`, .9)
+B1_90<-getEstimates(Model_Bee$`1`, .9)
+#Site2
+P2_90<-getEstimates(Model_Protein$`2`, .9)
+B2_90<-getEstimates(Model_Bee$`2`, .9)
+#Site3
+P3_90<-getEstimates(Model_Protein$`3`, .9)
+B3_90<-getEstimates(Model_Bee$`3`, .9)
+#Site4
+P4_90<-getEstimates(Model_Protein$`4`, .9)
+B4_90<-getEstimates(Model_Bee$`4`, .9)
+#Site5
+P5_90<-getEstimates(Model_Protein$`5`, .9)
+B5_90<-getEstimates(Model_Bee$`5`, .9)
+#Site6
+P6_90<-getEstimates(Model_Protein$`6`, .9)
+B6_90<-getEstimates(Model_Bee$`6`, .9)
+#Site7
+P7_90<-getEstimates(Model_Protein$`7`, .9)
+B7_90<-getEstimates(Model_Bee$`7`, .9)
+#Site8
+P8_90<-getEstimates(Model_Protein$`8`, .9)
+B8_90<-getEstimates(Model_Bee$`8`, .9)
+
+
+
+#Subtract 90% estimates (protein-bee=mismatch)
+mismatch90<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90=c((P1_90$x-B1_90$x), (P2_90$x-B2_90$x), (P3_90$x-B3_90$x),
+                      (P4_90$x-B4_90$x), (P5_90$x-B5_90$x), (P6_90$x-B6_90$x),
+                      (P7_90$x-B7_90$x),(P8_90$x-B8_90$x))
+)
+
+```
+
+## t-test 
+
+```{r}
+#Create data table for all mismatches
+##Merge and subset by site 
+  #make list of data
+  data_list <- list(mismatch33, mismatch50, mismatch90)     
+  #merge data
+  mismatch_all<-data_list %>% reduce(inner_join, by = c("Site","Size"))  
+
+# One-sample t-test
+stat.test33 <- mismatch_all %>% t_test(Mismatch33 ~ 1, mu = 0)
+stat.test50 <- mismatch_all %>% t_test(Mismatch50 ~ 1, mu = 0)
+stat.test90 <- mismatch_all %>% t_test(Mismatch90 ~ 1, mu = 0)
+
+# Visualization
+# Create the box-plot
+bxp33 <- ggboxplot(
+  mismatch_all$Mismatch33, width = 0.5, add = c("mean"), 
+  ylab = "Mismatch 33% (Days)", xlab = FALSE
+  )+
+  labs(subtitle = get_test_label(stat.test33, detailed = TRUE))
+bxp50 <- ggboxplot(
+  mismatch_all$Mismatch50, width = 0.5, add = c("mean"), 
+  ylab = "Mismatch 50% (Days)", xlab = FALSE
+  )+
+  labs(subtitle = get_test_label(stat.test50, detailed = TRUE))
+bxp90 <- ggboxplot(
+  mismatch_all$Mismatch90, width = 0.5, add = c("mean"), 
+  ylab = "Mismatch 90% (Days)", xlab = FALSE
+  )+
+  labs(subtitle = get_test_label(stat.test90, detailed = TRUE))
+
+#combined
+ggarrange(bxp33, bxp50, bxp90,
+          labels = "auto",
+          ncol = 3, nrow = 1, common.legend=FALSE) 
+
+```
+
+
+#Phenological mismatch comparing body size 
+
+```{r}
+###DATA PREPARATION###
+
+##Bee (/bee-flower interaction) abundances
+  #Remove "None"
+  BeeAb2<-subset(Bees, Bee!="None")
+  #Calculate summary data for bee abundance at each site and sample time 
+  B_AbSum2 <- BeeAb2 %>% group_by(Site, Day, BodySize) %>% 
+    summarize(Abundance = length(unique(ID)))
+  
+  #add missing data
+    miss<- data.frame(Site=c(1, 1,
+                             3, 3, 3,
+                             4, 4,
+                             5, 5, 5, 
+                             6, 6, 6, 6, 6, 6,
+                             7, 7, 7, 
+                             8, 8, 8, 8),
+                  Day=c(254, 254,
+                        144, 232, 232,
+                        232, 232,
+                        255, 255, 255,
+                        143, 143, 233, 233, 255, 255,
+                        255, 255, 255,
+                        255, 255, 255, 223),
+                  BodySize=c("large", "mid", 
+                             "large", "small", "mid",
+                             "small", "mid",
+                             "large", "mid", "small",
+                             "large", "mid", "small", "mid", "small", "mid",
+                             "large", "mid", "small",
+                             "large", "mid", "small", "small"),
+                  Abundance=0)
+    
+  B_AbSum2<- merge(x = B_AbSum2, y = miss, all = TRUE)
+
+##Merge and subset by body size 
+  #merge data
+  BeeProteinSum2 <- inner_join(MeadowProtein, B_AbSum2, by = c("Site","Day"))  
+  
+  #subset and save each 
+  large <- subset(BeeProteinSum2, subset = BodySize == "large")
+  mid<- subset(BeeProteinSum2, subset = BodySize == "mid")
+  small<- subset(BeeProteinSum2, subset = BodySize == "small")
+  
+  ##Calculate protein and bee abundances as ACCUMULATIONS 
+#LARGE
+  #calculate totals
+ Total_l <- large %>%
+  group_by(Site) %>%
+  summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+large_edit <- merge(large, Total_l, by="Site")
+  
+  #add cumulative sums
+large_edit <- large_edit %>% 
+  group_by(Site) %>%
+  mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+large_edit <- large_edit %>% 
+  mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc = cum_B/Total_B)
+#MID
+  #calculate totals
+ Total_m <- mid %>%
+  group_by(Site) %>%
+  summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+mid_edit <- merge(mid, Total_m, by="Site")
+  
+  #add cumulative sums
+mid_edit <- mid_edit %>% 
+  group_by(Site) %>%
+  mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+mid_edit <- mid_edit %>% 
+  mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc = cum_B/Total_B)
+#SMALL
+  #calculate totals
+ Total_s <- small %>%
+  group_by(Site) %>%
+  summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+small_edit <- merge(small, Total_s, by="Site")
+  
+  #add cumulative sums
+small_edit <- small_edit %>% 
+  group_by(Site) %>%
+  mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+small_edit <- small_edit %>% 
+  mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc = cum_B/Total_B)
+
+```
+
+# Analyzing the data 
+Create logistic regression models using the `nplr` package.
+
+https://cran.r-project.org/web/packages/nplr/vignettes/nplr.pdf
+
+
+```{r, warning=FALSE}
+
+##Split data by site 
+siteList_l <- split(large_edit, large_edit$Site) #split by site
+siteList_m <- split(mid_edit, mid_edit$Site) #split by site
+siteList_s <- split(small_edit, small_edit$Site) #split by site
+
+## Create Models
+  #large
+Model_Protein_l <- lapply(siteList_l, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+Model_Bee_l <- lapply(siteList_l, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc, silent = TRUE, useLog=FALSE)
+  })
+  #mid
+Model_Protein_m <- lapply(siteList_m, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+Model_Bee_m <- lapply(siteList_m, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc, silent = TRUE, useLog=FALSE)
+  })
+  #small
+Model_Protein_s <- lapply(siteList_s, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+Model_Bee_s <- lapply(siteList_s, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc, silent = TRUE, useLog=FALSE)
+  })
+
+```
+
+#visualize data
+
+```{r}
+#merge data back together (since we want to visualize the general trend not separated by site)
+large2 <- rename(large_edit, BeeAcc_l=BeeAcc)
+large2 <- large2 %>% select(c(Site, Day, ProteinAcc, BeeAcc_l))
+mid2 <- rename(mid_edit, BeeAcc_m=BeeAcc)
+mid2 <- mid2 %>% select(c(Site, Day, BeeAcc_m))
+small2 <- rename(small_edit, BeeAcc_s=BeeAcc)
+small2 <- small2 %>% select(c(Site, Day, BeeAcc_s))
+
+acc<- left_join(large2, mid2, by=c("Site", "Day"))
+acc<- left_join(acc, small2, by=c("Site", "Day"))
+acc <- acc %>% pivot_longer(c(ProteinAcc, BeeAcc_l, BeeAcc_m, BeeAcc_s), names_to = "Trend", values_to = "acc")
+
+#plot
+Fig4<- ggplot(acc, aes(x = Day, y = acc, color = Trend, linetype = Trend)) +
+  stat_smooth(aes(fill= Trend), method="glm", se=TRUE, fill = "grey50", size = 1.5, alpha = .1,
+                  method.args = list(family=binomial)) +
+  ylab("Accumulation (%)") +
+  scale_linetype_manual(labels = c('Large', 'Mid-sized', 'Small','Site Protein'), values=c(1, 1, 1, 4)) +
+  scale_colour_manual(labels = c('Large', 'Mid-sized', 'Small','Site Protein'), values=cbPalette) +
+  theme_classic()
+
+ggsave("Fig4_800.tiff", width = 9, height = 5, device='tiff', dpi=800)
+
+```
+
+
+# Determining phenological mismatches
+
+50% LARGE
+```{r}
+#Site1
+P1_50_l<-getEstimates(Model_Protein_l$`1`, .5)
+B1_50_l<-getEstimates(Model_Bee_l$`1`, .5)
+#Site2
+P2_50_l<-getEstimates(Model_Protein_l$`2`, .5)
+B2_50_l<-getEstimates(Model_Bee_l$`2`, .5)
+#Site3
+P3_50_l<-getEstimates(Model_Protein_l$`3`, .5)
+B3_50_l<-getEstimates(Model_Bee_l$`3`, .5)
+#Site4
+P4_50_l<-getEstimates(Model_Protein_l$`4`, .5)
+B4_50_l<-getEstimates(Model_Bee_l$`4`, .5)
+#Site5
+P5_50_l<-getEstimates(Model_Protein_l$`5`, .5)
+B5_50_l<-getEstimates(Model_Bee_l$`5`, .5)
+#Site6
+P6_50_l<-getEstimates(Model_Protein_l$`6`, .5)
+B6_50_l<-getEstimates(Model_Bee_l$`6`, .5)
+#Site7
+P7_50_l<-getEstimates(Model_Protein_l$`7`, .5)
+B7_50_l<-getEstimates(Model_Bee_l$`7`, .5)
+#Site8
+P8_50_l<-getEstimates(Model_Protein_l$`8`, .5)
+B8_50_l<-getEstimates(Model_Bee_l$`8`, .5)
+
+
+#Subtract 50% estimates (protein-bee=mismatch)
+mismatch50_l<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_l=c((P1_50_l$x-B1_50_l$x), (P2_50_l$x-B2_50_l$x), (P3_50_l$x-B3_50_l$x), 
+                      (P4_50_l$x-B4_50_l$x), (P5_50_l$x-B5_50_l$x), (P6_50_l$x-B6_50_l$x),
+                      (P7_50_l$x-B7_50_l$x),(P8_50_l$x-B8_50_l$x))
+)
+
+```
+
+50% MID
+```{r}
+#Site1
+P1_50_m<-getEstimates(Model_Protein_m$`1`, .5)
+B1_50_m<-getEstimates(Model_Bee_m$`1`, .5)
+#Site2
+P2_50_m<-getEstimates(Model_Protein_m$`2`, .5)
+B2_50_m<-getEstimates(Model_Bee_m$`2`, .5)
+#Site3
+P3_50_m<-getEstimates(Model_Protein_m$`3`, .5)
+B3_50_m<-getEstimates(Model_Bee_m$`3`, .5)
+#Site4
+P4_50_m<-getEstimates(Model_Protein_m$`4`, .5)
+B4_50_m<-getEstimates(Model_Bee_m$`4`, .5)
+#Site5
+P5_50_m<-getEstimates(Model_Protein_m$`5`, .5)
+B5_50_m<-getEstimates(Model_Bee_m$`5`, .5)
+#Site6
+P6_50_m<-getEstimates(Model_Protein_m$`6`, .5)
+B6_50_m<-getEstimates(Model_Bee_m$`6`, .5)
+#Site7
+P7_50_m<-getEstimates(Model_Protein_m$`7`, .5)
+B7_50_m<-getEstimates(Model_Bee_m$`7`, .5)
+#Site8
+P8_50_m<-getEstimates(Model_Protein_m$`8`, .5)
+B8_50_m<-getEstimates(Model_Bee_m$`8`, .5)
+
+
+#Subtract 50% estimates (protein-bee=mismatch)
+mismatch50_m<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_m=c((P1_50_m$x-B1_50_m$x), (P2_50_m$x-B2_50_m$x), (P3_50_m$x-B3_50_m$x), 
+                      (P4_50_m$x-B4_50_m$x), (P5_50_m$x-B5_50_m$x), (P6_50_m$x-B6_50_m$x),
+                      (P7_50_m$x-B7_50_m$x),(P8_50_m$x-B8_50_m$x))
+)
+
+```
+
+50% SMALL
+```{r}
+#Site1
+P1_50_s<-getEstimates(Model_Protein_s$`1`, .5)
+B1_50_s<-getEstimates(Model_Bee_s$`1`, .5)
+#Site2
+P2_50_s<-getEstimates(Model_Protein_s$`2`, .5)
+B2_50_s<-getEstimates(Model_Bee_s$`2`, .5)
+#Site3
+P3_50_s<-getEstimates(Model_Protein_s$`3`, .5)
+B3_50_s<-getEstimates(Model_Bee_s$`3`, .5)
+#Site4
+P4_50_s<-getEstimates(Model_Protein_s$`4`, .5)
+B4_50_s<-getEstimates(Model_Bee_s$`4`, .5)
+#Site5
+P5_50_s<-getEstimates(Model_Protein_s$`5`, .5)
+B5_50_s<-getEstimates(Model_Bee_s$`5`, .5)
+#Site6
+P6_50_s<-getEstimates(Model_Protein_s$`6`, .5)
+B6_50_s<-getEstimates(Model_Bee_s$`6`, .5)
+#Site7
+P7_50_s<-getEstimates(Model_Protein_s$`7`, .5)
+B7_50_s<-getEstimates(Model_Bee_s$`7`, .5)
+#Site8
+P8_50_s<-getEstimates(Model_Protein_s$`8`, .5)
+B8_50_s<-getEstimates(Model_Bee_s$`8`, .5)
+
+
+#Subtract 50% estimates (protein-bee=mismatch)
+mismatch50_s<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_s=c((P1_50_s$x-B1_50_s$x), (P2_50_s$x-B2_50_s$x), (P3_50_s$x-B3_50_s$x), 
+                      (P4_50_s$x-B4_50_s$x), (P5_50_s$x-B5_50_s$x), (P6_50_s$x-B6_50_s$x),
+                      (P7_50_s$x-B7_50_s$x),(P8_50_s$x-B8_50_s$x))
+)
+
+```
+
+33% LARGE
+```{r}
+#Site1
+P1_33_l<-getEstimates(Model_Protein_l$`1`, .33)
+B1_33_l<-getEstimates(Model_Bee_l$`1`, .33)
+#Site2
+P2_33_l<-getEstimates(Model_Protein_l$`2`, .33)
+B2_33_l<-getEstimates(Model_Bee_l$`2`, .33)
+#Site3
+P3_33_l<-getEstimates(Model_Protein_l$`3`, .33)
+B3_33_l<-getEstimates(Model_Bee_l$`3`, .33)
+#Site4
+P4_33_l<-getEstimates(Model_Protein_l$`4`, .33)
+B4_33_l<-getEstimates(Model_Bee_l$`4`, .33)
+#Site5
+P5_33_l<-getEstimates(Model_Protein_l$`5`, .33)
+B5_33_l<-getEstimates(Model_Bee_l$`5`, .33)
+#Site6
+P6_33_l<-getEstimates(Model_Protein_l$`6`, .33)
+B6_33_l<-getEstimates(Model_Bee_l$`6`, .33)
+#Site7
+P7_33_l<-getEstimates(Model_Protein_l$`7`, .33)
+B7_33_l<-getEstimates(Model_Bee_l$`7`, .33)
+#Site8
+P8_33_l<-getEstimates(Model_Protein_l$`8`, .33)
+B8_33_l<-getEstimates(Model_Bee_l$`8`, .33)
+
+
+#Subtract 33% estimates (protein-bee=mismatch)
+mismatch33_l<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33_l=c((P1_33_l$x-B1_33_l$x), (P2_33_l$x-B2_33_l$x), (P3_33_l$x-B3_33_l$x), 
+                      (P4_33_l$x-B4_33_l$x), (P5_33_l$x-B5_33_l$x), (P6_33_l$x-B6_33_l$x),
+                      (P7_33_l$x-B7_33_l$x),(P8_33_l$x-B8_33_l$x))
+)
+
+```
+
+33% MID
+```{r}
+#Site1
+P1_33_m<-getEstimates(Model_Protein_m$`1`, .33)
+B1_33_m<-getEstimates(Model_Bee_m$`1`, .33)
+#Site2
+P2_33_m<-getEstimates(Model_Protein_m$`2`, .33)
+B2_33_m<-getEstimates(Model_Bee_m$`2`, .33)
+#Site3
+P3_33_m<-getEstimates(Model_Protein_m$`3`, .33)
+B3_33_m<-getEstimates(Model_Bee_m$`3`, .33)
+#Site4
+P4_33_m<-getEstimates(Model_Protein_m$`4`, .33)
+B4_33_m<-getEstimates(Model_Bee_m$`4`, .33)
+#Site5
+P5_33_m<-getEstimates(Model_Protein_m$`5`, .33)
+B5_33_m<-getEstimates(Model_Bee_m$`5`, .33)
+#Site6
+P6_33_m<-getEstimates(Model_Protein_m$`6`, .33)
+B6_33_m<-getEstimates(Model_Bee_m$`6`, .33)
+#Site7
+P7_33_m<-getEstimates(Model_Protein_m$`7`, .33)
+B7_33_m<-getEstimates(Model_Bee_m$`7`, .33)
+#Site8
+P8_33_m<-getEstimates(Model_Protein_m$`8`, .33)
+B8_33_m<-getEstimates(Model_Bee_m$`8`, .33)
+
+
+#Subtract 33% estimates (protein-bee=mismatch)
+mismatch33_m<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33_m=c((P1_33_m$x-B1_33_m$x), (P2_33_m$x-B2_33_m$x), (P3_33_m$x-B3_33_m$x), 
+                      (P4_33_m$x-B4_33_m$x), (P5_33_m$x-B5_33_m$x), (P6_33_m$x-B6_33_m$x),
+                      (P7_33_m$x-B7_33_m$x),(P8_33_m$x-B8_33_m$x))
+)
+
+```
+
+33% SMALL
+```{r}
+#Site1
+P1_33_s<-getEstimates(Model_Protein_s$`1`, .33)
+B1_33_s<-getEstimates(Model_Bee_s$`1`, .33)
+#Site2
+P2_33_s<-getEstimates(Model_Protein_s$`2`, .33)
+B2_33_s<-getEstimates(Model_Bee_s$`2`, .33)
+#Site3
+P3_33_s<-getEstimates(Model_Protein_s$`3`, .33)
+B3_33_s<-getEstimates(Model_Bee_s$`3`, .33)
+#Site4
+P4_33_s<-getEstimates(Model_Protein_s$`4`, .33)
+B4_33_s<-getEstimates(Model_Bee_s$`4`, .33)
+#Site5
+P5_33_s<-getEstimates(Model_Protein_s$`5`, .33)
+B5_33_s<-getEstimates(Model_Bee_s$`5`, .33)
+#Site6
+P6_33_s<-getEstimates(Model_Protein_s$`6`, .33)
+B6_33_s<-getEstimates(Model_Bee_s$`6`, .33)
+#Site7
+P7_33_s<-getEstimates(Model_Protein_s$`7`, .33)
+B7_33_s<-getEstimates(Model_Bee_s$`7`, .33)
+#Site8
+P8_33_s<-getEstimates(Model_Protein_s$`8`, .33)
+B8_33_s<-getEstimates(Model_Bee_s$`8`, .33)
+
+
+#Subtract 33% estimates (protein-bee=mismatch)
+mismatch33_s<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33_s=c((P1_33_s$x-B1_33_s$x), (P2_33_s$x-B2_33_s$x), (P3_33_s$x-B3_33_s$x), 
+                      (P4_33_s$x-B4_33_s$x), (P5_33_s$x-B5_33_s$x), (P6_33_s$x-B6_33_s$x),
+                      (P7_33_s$x-B7_33_s$x),(P8_33_s$x-B8_33_s$x))
+)
+
+```
+
+90% LARGE
+```{r}
+#Site1
+P1_90_l<-getEstimates(Model_Protein_l$`1`, .9)
+B1_90_l<-getEstimates(Model_Bee_l$`1`, .9)
+#Site2
+P2_90_l<-getEstimates(Model_Protein_l$`2`, .9)
+B2_90_l<-getEstimates(Model_Bee_l$`2`, .9)
+#Site3
+P3_90_l<-getEstimates(Model_Protein_l$`3`, .9)
+B3_90_l<-getEstimates(Model_Bee_l$`3`, .9)
+#Site4
+P4_90_l<-getEstimates(Model_Protein_l$`4`, .9)
+B4_90_l<-getEstimates(Model_Bee_l$`4`, .9)
+#Site5
+P5_90_l<-getEstimates(Model_Protein_l$`5`, .9)
+B5_90_l<-getEstimates(Model_Bee_l$`5`, .9)
+#Site6
+P6_90_l<-getEstimates(Model_Protein_l$`6`, .9)
+B6_90_l<-getEstimates(Model_Bee_l$`6`, .9)
+#Site7
+P7_90_l<-getEstimates(Model_Protein_l$`7`, .9)
+B7_90_l<-getEstimates(Model_Bee_l$`7`, .9)
+#Site8
+P8_90_l<-getEstimates(Model_Protein_l$`8`, .9)
+B8_90_l<-getEstimates(Model_Bee_l$`8`, .9)
+
+
+#Subtract 90% estimates (protein-bee=mismatch)
+mismatch90_l<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_l=c((P1_90_l$x-B1_90_l$x), (P2_90_l$x-B2_90_l$x), (P3_90_l$x-B3_90_l$x), 
+                      (P4_90_l$x-B4_90_l$x), (P5_90_l$x-B5_90_l$x), (P6_90_l$x-B6_90_l$x),
+                      (P7_90_l$x-B7_90_l$x),(P8_90_l$x-B8_90_l$x))
+)
+
+```
+
+90% MID
+```{r}
+#Site1
+P1_90_m<-getEstimates(Model_Protein_m$`1`, .9)
+B1_90_m<-getEstimates(Model_Bee_m$`1`, .9)
+#Site2
+P2_90_m<-getEstimates(Model_Protein_m$`2`, .9)
+B2_90_m<-getEstimates(Model_Bee_m$`2`, .9)
+#Site3
+P3_90_m<-getEstimates(Model_Protein_m$`3`, .9)
+B3_90_m<-getEstimates(Model_Bee_m$`3`, .9)
+#Site4
+P4_90_m<-getEstimates(Model_Protein_m$`4`, .9)
+B4_90_m<-getEstimates(Model_Bee_m$`4`, .9)
+#Site5
+P5_90_m<-getEstimates(Model_Protein_m$`5`, .9)
+B5_90_m<-getEstimates(Model_Bee_m$`5`, .9)
+#Site6
+P6_90_m<-getEstimates(Model_Protein_m$`6`, .9)
+B6_90_m<-getEstimates(Model_Bee_m$`6`, .9)
+#Site7
+P7_90_m<-getEstimates(Model_Protein_m$`7`, .9)
+B7_90_m<-getEstimates(Model_Bee_m$`7`, .9)
+#Site8
+P8_90_m<-getEstimates(Model_Protein_m$`8`, .9)
+B8_90_m<-getEstimates(Model_Bee_m$`8`, .9)
+
+
+#Subtract 90% estimates (protein-bee=mismatch)
+mismatch90_m<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_m=c((P1_90_m$x-B1_90_m$x), (P2_90_m$x-B2_90_m$x), (P3_90_m$x-B3_90_m$x), 
+                      (P4_90_m$x-B4_90_m$x), (P5_90_m$x-B5_90_m$x), (P6_90_m$x-B6_90_m$x),
+                      (P7_90_m$x-B7_90_m$x),(P8_90_m$x-B8_90_m$x))
+)
+
+```
+
+90% SMALL
+```{r}
+#Site1
+P1_90_s<-getEstimates(Model_Protein_s$`1`, .9)
+B1_90_s<-getEstimates(Model_Bee_s$`1`, .9)
+#Site2
+P2_90_s<-getEstimates(Model_Protein_s$`2`, .9)
+B2_90_s<-getEstimates(Model_Bee_s$`2`, .9)
+#Site3
+P3_90_s<-getEstimates(Model_Protein_s$`3`, .9)
+B3_90_s<-getEstimates(Model_Bee_s$`3`, .9)
+#Site4
+P4_90_s<-getEstimates(Model_Protein_s$`4`, .9)
+B4_90_s<-getEstimates(Model_Bee_s$`4`, .9)
+#Site5
+P5_90_s<-getEstimates(Model_Protein_s$`5`, .9)
+B5_90_s<-getEstimates(Model_Bee_s$`5`, .9)
+#Site6
+P6_90_s<-getEstimates(Model_Protein_s$`6`, .9)
+B6_90_s<-getEstimates(Model_Bee_s$`6`, .9)
+#Site7
+P7_90_s<-getEstimates(Model_Protein_s$`7`, .9)
+B7_90_s<-getEstimates(Model_Bee_s$`7`, .9)
+#Site8
+P8_90_s<-getEstimates(Model_Protein_s$`8`, .9)
+B8_90_s<-getEstimates(Model_Bee_s$`8`, .9)
+
+
+#Subtract 10% estimates (protein-bee=mismatch)
+mismatch90_s<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_s=c((P1_90_s$x-B1_90_s$x), (P2_90_s$x-B2_90_s$x), (P3_90_s$x-B3_90_s$x), 
+                      (P4_90_s$x-B4_90_s$x), (P5_90_s$x-B5_90_s$x), (P6_90_s$x-B6_90_s$x),
+                      (P7_90_s$x-B7_90_s$x),(P8_90_s$x-B8_90_s$x))
+)
+
+```
+
+## Compare mismatch between body size: ANOVA
+
+```{r}
+#Create data table for all mismatches
+  # 33% mismatch
+Mismatch33 <- inner_join(mismatch33_l, mismatch33_m, by = c("Site","Size"))  
+Mismatch33 <- inner_join(Mismatch33, mismatch33_s, by = c("Site","Size"))
+#rename columns
+Mismatch33 <- rename(Mismatch33, c(Large=Mismatch33_l, Medium=Mismatch33_m, Small=Mismatch33_s))
+#wide to long format
+Mismatch33 = gather(Mismatch33, Bodysize, mismatch, Large:Small, factor_key=TRUE)
+
+# 50% mismatch
+Mismatch50 <- inner_join(mismatch50_l, mismatch50_m, by = c("Site","Size"))  
+Mismatch50 <- inner_join(Mismatch50, mismatch50_s, by = c("Site","Size"))
+#rename columns
+Mismatch50 <- rename(Mismatch50, c(Large=Mismatch50_l, Medium=Mismatch50_m, Small=Mismatch50_s))
+#wide to long format
+Mismatch50 = gather(Mismatch50, Bodysize, mismatch, Large:Small, factor_key=TRUE)
+
+# 90% mismatch
+Mismatch90 <- inner_join(mismatch90_l, mismatch90_m, by = c("Site","Size"))  
+Mismatch90 <- inner_join(Mismatch90, mismatch90_s, by = c("Site","Size"))
+#rename columns
+Mismatch90 <- rename(Mismatch90, c(Large=Mismatch90_l, Medium=Mismatch90_m, Small=Mismatch90_s))
+#wide to long format
+Mismatch90 = gather(Mismatch90, Bodysize, mismatch, Large:Small, factor_key=TRUE)
+
+# box plot with ANOVA tests/Tukey HSD
+# 33% mismatch
+model<- aov(Mismatch33$mismatch ~ Mismatch33$Bodysize )
+TukeyHSD(model, conf.level=.95)
+
+Mismatch33_plot<- ggplot(Mismatch33, aes(x=Bodysize, y=mismatch, fill=Bodysize)) +
+  geom_boxplot(outlier.shape = NA, aes(fill=Bodysize))+ 
+  ylab("33% Temporal distance (days)")+
+   xlab(element_blank())+
+  geom_hline(yintercept = 0, linetype=2) +
+  theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
+  stat_summary(geom = 'text', label = c("a","b","c"), fun = max, hjust=1) + 
+  scale_fill_manual(values=cbPalette)
+
+# 50% mismatch
+model<- aov(Mismatch50$mismatch ~ Mismatch50$Bodysize )
+TukeyHSD(model, conf.level=.95)
+
+Mismatch50_plot<- ggplot(Mismatch50, aes(x=Bodysize, y=mismatch, fill=Bodysize)) +
+  geom_boxplot(outlier.shape = NA, aes(fill=Bodysize))+ 
+  ylab("50% Temporal distance (days)")+
+  xlab(element_blank())+
+  geom_hline(yintercept = 0, linetype=2) +
+  theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+ 
+  stat_summary(geom = 'text', label = c("a","b","b"), fun = max, hjust = 1)+ 
+  scale_fill_manual(values=cbPalette)
+
+# 90% mismatch
+model<- aov(Mismatch90$mismatch ~ Mismatch90$Bodysize )
+TukeyHSD(model, conf.level=.95)
+
+Mismatch90_plot<- ggplot(Mismatch90, aes(x=Bodysize, y=mismatch, fill=Bodysize)) +
+  geom_boxplot(outlier.shape = NA, aes(fill=Bodysize))+ 
+  ylab("90% Temporal distance (days)")+
+  geom_hline(yintercept = 0, linetype=2) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+ 
+  scale_fill_manual(values=cbPalette)
+
+
+#combined
+fig5<-ggarrange(Mismatch33_plot, Mismatch50_plot, Mismatch90_plot,
+          labels = "auto",
+          ncol = 1, nrow = 3, common.legend=TRUE, legend="bottom") 
+
+ggsave("Fig5_800.tiff", width = 5.2, height = 10, device='tiff', dpi=800)
+
+m11<-lm(mismatch~Bodysize, data=Mismatch90)
+anova(m11)
+
+m12<-lm(mismatch~Bodysize, data=Mismatch50)
+anova(m12)
+
+m13<-lm(mismatch~Bodysize, data=Mismatch33)
+anova(m13)
+
+```
