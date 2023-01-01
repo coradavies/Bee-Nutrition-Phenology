@@ -23,7 +23,7 @@ library(rstatix)
 library(nplr)
 library(ggtern)
 library(bipartite)
-
+library(rcompanion)
 ```
 
 ###DATA ANALYSIS    
@@ -456,34 +456,23 @@ S4a<- ggscatter(Beeab2,x="Size",y="Abundance",
   theme(legend.title = element_blank())
 
 ```
-b) Phenology of bee richness relative to patch size
-c) Phenology of bee diversity relative to patch size
+
+Phenology of bee richness relative to patch size
 
 ```{r}
+#Table S1: summarize bee genera abundances across meadows
+Bees3<- Bees %>% filter(Bee != "None") #remove none
+tables1<- Bees3 %>% group_by(Site, Family, Bee) %>%
+  summarize(Count = n()) %>%
+  spread(key = Site, value = Count) %>%
+  mutate_all(funs(ifelse(is.na(.), 0, .))) #change NA cells to 0
 
 #calculate bee richness
-Bees3<- Bees %>% filter(Bee != "None") #remove none
 Beerich <- Bees3 %>% group_by(Site, Day) %>%
   summarize(Richness = length(unique(Bee)))
 Beerich <- left_join(Beerich, SiteInfo, by=c("Site")) #add site size
 Beerich <- Beerich %>% as.data.frame() %>%
   add_row(Site = c('5', '7', '8'), Day = c(255, 255, 255), Richness = c(0,0,0), Size = c(0.83, 0.45, 0.16)) #add zeros
-
-#Calculate bee diversity
-
-#create matrix by site-day
-Beediversity<- Bees3 %>% group_by(Site, Day, Bee) %>%
-  summarize(Count = n()) %>%
-  spread(key = Bee, value = Count) %>%
-  mutate_all(funs(ifelse(is.na(.), 0, .))) #change NA cells to 0
-Beediversity <- left_join(Beediversity, SiteInfo, by=c("Site")) #add site size
-
-#Calculate and add diversity to the existing ‘Beediversity’ data frame
-Beediversity$Shannon=vegan::diversity(Beediversity[c(3:50)], index="shannon")
-Beediversity <- Beediversity %>% as.data.frame() %>%
-  add_row(Site = c('5', '7', '8'), Day = c(255, 255, 255), Shannon = c(0,0,0), Size = c(0.83, 0.45, 0.16)) #add zeros
-
-#plot the data 
 
 S3b<- Beerich %>%
   ggplot(aes(x=Day, y=Richness)) +
@@ -507,6 +496,26 @@ S4b<- ggscatter(Beerich,x="Size",y="Richness",
   xlab("Canopy gap size (ha)")+
   theme(legend.title = element_blank())
 
+```
+
+Phenology of bee diversity relative to patch size
+
+```{r}
+
+##Calculate bee diversity
+#create matrix by site-day
+Beediversity<- Bees3 %>% group_by(Site, Day, Bee) %>%
+  summarize(Count = n()) %>%
+  spread(key = Bee, value = Count) %>%
+  mutate_all(funs(ifelse(is.na(.), 0, .))) #change NA cells to 0
+Beediversity <- left_join(Beediversity, SiteInfo, by=c("Site")) #add site size
+
+#Calculate and add diversity to the existing ‘Beediversity’ data frame
+Beediversity$Shannon=vegan::diversity(Beediversity[c(3:43)], index="shannon")
+Beediversity <- Beediversity %>% as.data.frame() %>%
+  add_row(Site = c('5', '7', '8'), Day = c(255, 255, 255), Shannon = c(0,0,0), Size = c(0.83, 0.45, 0.16)) #add zeros
+
+#plot the data 
 S3c<- Beediversity %>%
   ggplot( aes(x=Day, y=Shannon)) +
  geom_line(aes(group=Site), colour="grey40", alpha=.25) +
@@ -549,7 +558,8 @@ ggsave("S4_800.tiff", width = 8, height = 8, device='tiff', dpi=800)
 #Chi-square test for body size vs. time and meadow size
 
 ```{r, warning=F}
-#bee body size versus time (sample period)
+#BEE BODY SIZE 
+#bee size versus time (sample period)
 beesize_time <- Bees3 %>% 
   group_by(Sample, BodySize) %>% 
   summarize(IntTotal = length(unique(ID)))
@@ -603,11 +613,140 @@ beesize_meadowsize <- beesize_meadowsize %>%
 
 chisq.test(beesize_meadowsize[3:5])
 
-figure3<- ggarrange(fig3a, fig3b,
-                    labels = "auto",
-                    ncol = 1, nrow = 2, common.legend=TRUE,legend="right")
+```
 
-ggsave("Fig3_800.tiff", width = 6, height = 5.5, device='tiff', dpi=800)
+#Chi-square test for nesting vs. time and meadow size
+
+```{r, warning=F}
+#BEE NESTING
+#bee nesting versus time (sample period)
+beenest_time <- Bees3 %>% 
+  group_by(Sample, Nest1) %>% 
+  summarize(IntTotal = length(unique(ID)))
+
+beenest_time$Date <- c("May 21", "May 21", "May 21", 
+                       "June 3", "June 3", "June 3", "June 3",
+                       "June 18", "June 18", "June 18", "June 18", 
+                       "July 1", "July 1", "July 1", 
+                       "July 14","July 14","July 14", "July 14", 
+                       "July 28","July 28","July 28", "July 28", 
+                       "Aug. 11", "Aug. 11", "Aug. 11", "Aug. 11", 
+                       "Aug. 21","Aug. 21",
+                       "Sept. 12","Sept. 12","Sept. 12","Sept. 12")
+
+#visualize
+fig3c<- ggplot(beenest_time, aes(x = as.factor(Date), y = IntTotal, fill = Nest1)) + 
+  geom_histogram(stat = "identity", position = "fill") +
+  xlab("Sample date") +
+  ylab("Percent abundance (%)") +
+  scale_fill_manual(values=cbPalette)+
+  guides(color = guide_legend(title = "Nesting behavior"))+ 
+  theme_classic()
+
+#test
+beenest_time <- beenest_time %>%
+  spread(key = Nest1, value = IntTotal)
+
+beenest_time$Sample <- as.factor(beenest_time$Sample)
+beenest_time[is.na(beenest_time)] <- 0
+
+chisq.test(beenest_time[3:6])
+
+    
+#bee body size versus meadow size
+beenest_meadowsize <- Bees3 %>% 
+  group_by(Site, Nest1) %>% 
+  summarize(IntTotal = length(unique(ID)))
+
+beenest_meadowsize <- left_join(beenest_meadowsize, SiteInfo, by="Site")
+
+#visualize
+fig3d<- ggplot(beenest_meadowsize, aes(x = as.factor(Size), y = IntTotal, fill = Nest1)) + 
+  geom_histogram(stat = "identity", position = "fill") +
+  xlab("Canopy gap size (ha)") +
+  ylab("Percent abundance (%)") +
+  scale_fill_manual(values=cbPalette)+
+  theme_classic()
+
+#Test
+beenest_meadowsize <- beenest_meadowsize %>%
+  spread(key = Nest1, value = IntTotal)
+beenest_meadowsize[is.na(beenest_meadowsize)] <- 0
+
+chisq.test(beenest_meadowsize[3:6])
+
+```
+#Chi-square test for sociality vs. time and meadow size
+
+```{r, warning=F}
+#BEE SOCIALITY
+#bee sociality versus time (sample period)
+beesoc_time <- Bees3 %>% 
+  group_by(Sample, Sociality) %>% 
+  summarize(IntTotal = length(unique(ID)))
+
+beesoc_time$Date <- c("May 21", "May 21", "May 21", "May 21",
+                       "June 3", "June 3", "June 3", "June 3",
+                       "June 18", "June 18", "June 18", "June 18", 
+                       "July 1", "July 1", "July 1", 
+                       "July 14","July 14","July 14", "July 14", 
+                       "July 28","July 28","July 28", "July 28", 
+                       "Aug. 11", "Aug. 11", "Aug. 11", "Aug. 11", 
+                       "Aug. 21","Aug. 21","Aug. 21",
+                       "Sept. 12","Sept. 12","Sept. 12","Sept. 12")
+
+#visualize
+fig3e<- ggplot(beesoc_time, aes(x = as.factor(Date), y = IntTotal, fill = Sociality)) + 
+  geom_histogram(stat = "identity", position = "fill") +
+  xlab("Sample date") +
+  ylab("Percent abundance (%)") +
+  scale_fill_manual(values=cbPalette)+
+  theme_classic()
+
+#test
+beesoc_time <- beesoc_time %>%
+  spread(key = Sociality, value = IntTotal)
+
+beesoc_time$Sample <- as.factor(beesoc_time$Sample)
+beesoc_time[is.na(beesoc_time)] <- 0
+
+chisq.test(beesoc_time[3:6])
+
+    
+#bee body size versus meadow size
+beesoc_meadowsize <- Bees3 %>% 
+  group_by(Site, Sociality) %>% 
+  summarize(IntTotal = length(unique(ID)))
+
+beesoc_meadowsize <- left_join(beesoc_meadowsize, SiteInfo, by="Site")
+
+#visualize
+fig3f<- ggplot(beesoc_meadowsize, aes(x = as.factor(Size), y = IntTotal, fill = Sociality)) + 
+  geom_histogram(stat = "identity", position = "fill") +
+  xlab("Canopy gap size (ha)") +
+  ylab("Percent abundance (%)") +
+  scale_fill_manual(values=cbPalette)+
+  theme_classic()
+
+#Test
+beesoc_meadowsize <- beesoc_meadowsize %>%
+  spread(key = Sociality, value = IntTotal)
+beesoc_meadowsize[is.na(beesoc_meadowsize)] <- 0
+
+chisq.test(beesoc_meadowsize[3:6])
+
+```
+
+
+Create figure 3. 
+
+```{r}
+#Combine all figures 
+figure3<- ggarrange(fig3a, fig3b, fig3c, fig3d, fig3e, fig3f,
+                    labels = "auto",
+                    ncol = 2, nrow = 3, common.legend=FALSE,legend="right")
+
+ggsave("Fig3_800.tiff", width = 12, height = 14, device='tiff', dpi=800)
 
 ```
 
@@ -971,11 +1110,7 @@ ggscatter(con_inv,x="Invasive",y="connectance",
 
 # Bee functional traits
 
-H: Large body bees are less sensitive to patch size due to longer flight distances.
-
-- Calculate variable for each site-sample on the ratio of large:small body bees
-- Linear regression comparing correlation to patch size
-- Add to model above to test?
+The following analyses examine bee functional traits across different meadows and floral protein availability. These analyses use body size (small, medium, large), sociality (social, soliatry, klepto, multiple), and nesting behavior (above ground, below ground, klepto, both). 
 
 ```{r}
 
@@ -1334,7 +1469,7 @@ ggarrange(bxp33, bxp50, bxp90,
 ```
 
 
-#Phenological mismatch comparing body size 
+##Phenological mismatch comparing body size 
 
 ```{r}
 ###DATA PREPARATION###
@@ -1496,20 +1631,375 @@ acc<- left_join(acc, small2, by=c("Site", "Day"))
 acc <- acc %>% pivot_longer(c(ProteinAcc, BeeAcc_l, BeeAcc_m, BeeAcc_s), names_to = "Trend", values_to = "acc")
 
 #plot
-Fig4<- ggplot(acc, aes(x = Day, y = acc, color = Trend, linetype = Trend)) +
+Fig4A<- ggplot(acc, aes(x = Day, y = acc, color = Trend, linetype = Trend)) +
   stat_smooth(aes(fill= Trend), method="glm", se=TRUE, fill = "grey50", size = 1.5, alpha = .1,
                   method.args = list(family=binomial)) +
   ylab("Accumulation (%)") +
   scale_linetype_manual(labels = c('Large', 'Mid-sized', 'Small','Site Protein'), values=c(1, 1, 1, 4)) +
-  scale_colour_manual(labels = c('Large', 'Mid-sized', 'Small','Site Protein'), values=cbPalette) +
+  scale_colour_manual(labels = c('Large', 'Mid-sized', 'Small','Site Protein'), values=c("#999999", "#E69F00", "#56B4E9", "#F0E442")) +
+  theme_classic()
+
+```
+
+##Phenological mismatch comparing sociality
+
+```{r}
+###DATA PREPARATION###
+#Create blank data frame  
+  df <- data.frame(ID = 1:288)
+  newcol <- c(1:8)
+  newcol2 <- c(145, 154, 167, 180, 197, 208, 224, 232, 254,
+               145, 154, 167, 180, 197, 208, 224, 232, 254,
+               144, 155, 168, 179, 196, 207, 224, 232, 254,
+               144, 155, 168, 179, 196, 207, 224, 232, 254,
+               143, 153, 171, 181, 194, 209, 223, 233, 255,
+               143, 153, 171, 182, 194, 209, 223, 233, 255,
+               141, 153, 169, 181, 195, 210, 223, 233, 255,
+               141, 153, 169, 181, 195, 210, 223, 233, 255)
+  newcol3 <- c("klepto", "multiple", "social", "solitary")
+  #insert new columns by repeating each element in vector the required number of times
+  df2 <- dplyr::mutate(df, Site = rep(newcol, each = 36),
+                     Day = rep(newcol2, each = 4),
+                     Sociality = rep(newcol3, times = 72))
+  df2<- df2[,-1]
+  
+##Bee (/bee-flower interaction) abundances
+  #Remove "None"
+  BeeAb2<-subset(Bees, Bee!="None")
+  #Calculate summary data for bee abundance at each site and sample time 
+  B_AbSum_Soc <- BeeAb2 %>% group_by(Site, Day, Sociality) %>% 
+    summarize(Abundance = length(unique(ID)))
+#merge dataframes and add zeros
+  B_AbSum_Soc <- merge(B_AbSum_Soc, df2, by=c("Site", "Day", "Sociality"), all.y = TRUE)
+  B_AbSum_Soc[is.na(B_AbSum_Soc)] <- 0
+
+##Merge and subset by sociality
+  #merge data
+  SocProtein <- merge(MeadowProtein, B_AbSum_Soc, by = c("Site","Day"), all.y=TRUE)  
+  
+  #subset and save each 
+  klepto <- subset(SocProtein, subset = Sociality == "klepto")
+  multiple<- subset(SocProtein, subset = Sociality == "multiple")
+  social<- subset(SocProtein, subset = Sociality == "social")
+  solitary<- subset(SocProtein, subset = Sociality == "solitary")
+  
+##Calculate protein and bee abundances as ACCUMULATIONS 
+  #KLEPTO
+   #calculate totals
+   Total_kle <- klepto %>%
+     group_by(Site) %>%
+     summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+  klepto_edit <- merge(klepto, Total_kle, by="Site")
+  
+  #add cumulative sums
+  klepto_edit <- klepto_edit %>% 
+    group_by(Site) %>%
+    mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+  klepto_edit <- klepto_edit %>% 
+    mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc = cum_B/Total_B)
+  #Since klepto bees are rare we will remove sites where no klepto bees were found
+  klepto_edit <- klepto_edit %>% drop_na()
+  
+  #MULTIPLE
+   #calculate totals
+   Total_mul <- multiple %>%
+     group_by(Site) %>%
+     summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+  mul_edit <- merge(multiple, Total_mul, by="Site")
+  
+  #add cumulative sums
+  mul_edit <- mul_edit %>% 
+    group_by(Site) %>%
+    mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+  mul_edit <- mul_edit %>% 
+    mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc = cum_B/Total_B)
+  
+  #SOCIAL
+   #calculate totals
+   Total_soc <- social %>%
+     group_by(Site) %>%
+     summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+  soc_edit <- merge(social, Total_soc, by="Site")
+  
+  #add cumulative sums
+  soc_edit <- soc_edit %>% 
+    group_by(Site) %>%
+    mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+  soc_edit <- soc_edit %>% 
+    mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc = cum_B/Total_B)
+  
+    #SOLITARY
+   #calculate totals
+   Total_sol <- solitary %>%
+     group_by(Site) %>%
+     summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+  sol_edit <- merge(solitary, Total_sol, by="Site")
+  
+  #add cumulative sums
+  sol_edit <- sol_edit %>% 
+    group_by(Site) %>%
+    mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+  sol_edit <- sol_edit %>% 
+    mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc = cum_B/Total_B)
+```
+# Analyzing the data 
+
+```{r, warning=FALSE}
+
+##Split data by site 
+siteList_1 <- split(klepto_edit, klepto_edit$Site, drop=TRUE) 
+siteList_2 <- split(mul_edit, mul_edit$Site) 
+siteList_3 <- split(soc_edit, soc_edit$Site) 
+siteList_4 <- split(sol_edit, sol_edit$Site) 
+
+## Create Models
+  #kelpto
+Model_Protein_1 <- lapply(siteList_1, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+Model_Bee_1 <- lapply(siteList_1, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc, silent = TRUE, useLog=FALSE)
+  })
+  #mulitple
+Model_Protein_2 <- lapply(siteList_2, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+Model_Bee_2 <- lapply(siteList_2, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc, silent = TRUE, useLog=FALSE)
+  })
+  #social
+Model_Protein_3 <- lapply(siteList_3, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+Model_Bee_3 <- lapply(siteList_3, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc, silent = TRUE, useLog=FALSE)
+  })
+  #soliatry
+Model_Protein_4 <- lapply(siteList_4, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+Model_Bee_4 <- lapply(siteList_4, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc, silent = TRUE, useLog=FALSE)
+  })
+
+```
+
+
+#visualize data
+
+```{r}
+#merge data back together (since we want to visualize the general trend not separated by site)
+klepto2 <- rename(klepto_edit, BeeAcc_1=BeeAcc)
+klepto2 <- klepto2 %>% select(c(Site, Day, ProteinAcc, BeeAcc_1))
+mul2 <- rename(mul_edit, BeeAcc_2=BeeAcc)
+mul2 <- mul2 %>% select(c(Site, Day, ProteinAcc, BeeAcc_2))
+soc2 <- rename(soc_edit, BeeAcc_3=BeeAcc)
+soc2 <- soc2 %>% select(c(Site, Day, ProteinAcc, BeeAcc_3))
+sol2 <- rename(sol_edit, BeeAcc_4=BeeAcc)
+sol2 <- sol2 %>% select(c(Site, Day, ProteinAcc, BeeAcc_4))
+
+acc<- left_join(mul2, klepto2, by=c("Site", "Day", "ProteinAcc"))
+acc<- left_join(acc, soc2, by=c("Site", "Day", "ProteinAcc"))
+acc<- left_join(acc, sol2, by=c("Site", "Day", "ProteinAcc"))
+acc <- acc %>% pivot_longer(c(ProteinAcc, BeeAcc_1, BeeAcc_2, BeeAcc_3, BeeAcc_4), names_to = "Trend", values_to = "acc")
+acc <- acc %>% drop_na() #remove na rows
+  
+#plot
+Fig4B<- ggplot(acc, aes(x = Day, y = acc, color = Trend, linetype = Trend)) +
+  stat_smooth(aes(fill= Trend), method="glm", se=TRUE, fill = "grey50", size = 1.5, alpha = .1,
+                  method.args = list(family=binomial)) +
+  ylab("Accumulation (%)") +
+  scale_linetype_manual(labels = c('Klepto', 'Multiple', 'Social', 'Solitary', 'Site Protein'), values=c(1, 1, 1, 1, 4)) +
+  scale_colour_manual(labels = c('Klepto', 'Multiple', 'Social', 'Solitary', 'Site Protein'), values=cbPalette) +
   theme_classic()
 
 ggsave("Fig4_800.tiff", width = 9, height = 5, device='tiff', dpi=800)
 
 ```
 
+##Phenological mismatch comparing nesting habitat
 
-# Determining phenological mismatches
+```{r}
+###DATA PREPARATION###
+#Create blank data frame  
+  df <- data.frame(ID = 1:288)
+  newcol <- c(1:8)
+  newcol2 <- c(145, 154, 167, 180, 197, 208, 224, 232, 254,
+               145, 154, 167, 180, 197, 208, 224, 232, 254,
+               144, 155, 168, 179, 196, 207, 224, 232, 254,
+               144, 155, 168, 179, 196, 207, 224, 232, 254,
+               143, 153, 171, 181, 194, 209, 223, 233, 255,
+               143, 153, 171, 182, 194, 209, 223, 233, 255,
+               141, 153, 169, 181, 195, 210, 223, 233, 255,
+               141, 153, 169, 181, 195, 210, 223, 233, 255)
+  newcol3 <- c("above", "below", "both", "klepto")
+  #insert new columns by repeating each element in vector the required number of times
+  df2 <- dplyr::mutate(df, Site = rep(newcol, each = 36),
+                     Day = rep(newcol2, each = 4),
+                     Nest1 = rep(newcol3, times = 72))
+  df2<- df2[,-1]
+  
+##Bee (/bee-flower interaction) abundances
+  #Remove "None"
+  BeeAb2<-subset(Bees, Bee!="None")
+  #Calculate summary data for bee abundance at each site and sample time 
+  B_AbSum_Nest <- BeeAb2 %>% group_by(Site, Day, Nest1) %>% 
+    summarize(Abundance = length(unique(ID)))
+#merge dataframes and add zeros
+  B_AbSum_Nest <- merge(B_AbSum_Nest, df2, by=c("Site", "Day", "Nest1"), all.y = TRUE)
+  B_AbSum_Nest[is.na(B_AbSum_Nest)] <- 0
+
+##Merge and subset by nesting behavior
+  #merge data
+  NestProtein <- merge(MeadowProtein, B_AbSum_Nest, by = c("Site","Day"), all.y=TRUE)  
+  
+  #subset and save each 
+  klepto<- subset(NestProtein, subset = Nest1 == "klepto") 
+  above <- subset(NestProtein, subset = Nest1 == "above")
+  below<- subset(NestProtein, subset = Nest1 == "below")
+  both<- subset(NestProtein, subset = Nest1 == "both")
+
+##Calculate protein and bee abundances as ACCUMULATIONS 
+  #KLEPTO
+   #calculate totals
+   Total_kle <- klepto %>%
+     group_by(Site) %>%
+     summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+  klepto_edit <- merge(klepto, Total_kle, by="Site")
+  
+  #add cumulative sums
+  klepto_edit <- klepto_edit %>% 
+    group_by(Site) %>%
+    mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+  klepto_edit <- klepto_edit %>% 
+    mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc_1 = cum_B/Total_B)
+  #Since klepto bees are rare we will remove sites where no klepto bees were found
+  klepto_edit <- klepto_edit %>% drop_na()
+  
+  #ABOVE
+   #calculate totals
+   Total_above <- above %>%
+     group_by(Site) %>%
+     summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+  above_edit <- merge(above, Total_above, by="Site")
+  
+  #add cumulative sums
+  above_edit <- above_edit %>% 
+    group_by(Site) %>%
+    mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+  above_edit <- above_edit %>% 
+    mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc_2 = cum_B/Total_B)
+  
+  #BELOW
+   #calculate totals
+   Total_below <- below %>%
+     group_by(Site) %>%
+     summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+  below_edit <- merge(below, Total_below, by="Site")
+  
+  #add cumulative sums
+  below_edit <- below_edit %>% 
+    group_by(Site) %>%
+    mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+  below_edit <- below_edit %>% 
+    mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc_3 = cum_B/Total_B)
+  
+    #BOTH
+   #calculate totals
+   Total_both <- both %>%
+     group_by(Site) %>%
+     summarise(Total_P = sum(ProteinDensitySum),
+                          Total_B = sum(Abundance))
+  #add totals to dataframe
+  both_edit <- merge(both, Total_both, by="Site")
+  
+  #add cumulative sums
+  both_edit <- both_edit %>% 
+    group_by(Site) %>%
+    mutate(cum_P = cumsum(ProteinDensitySum),
+         cum_B = cumsum(Abundance))
+
+  #calculate accumulations
+  both_edit <- both_edit %>% 
+    mutate(ProteinAcc = cum_P/Total_P,
+         BeeAcc_4 = cum_B/Total_B)
+```
+
+#visualize data
+
+```{r}
+#select only data needed
+klepto2 <- klepto_edit %>% select(c(Site, Day, ProteinAcc, BeeAcc_1))
+above2 <- above_edit %>% select(c(Site, Day, ProteinAcc, BeeAcc_2))
+below2 <- below_edit %>% select(c(Site, Day, ProteinAcc, BeeAcc_3))
+both2 <- both_edit %>% select(c(Site, Day, ProteinAcc, BeeAcc_4))
+
+acc<- left_join(above2, klepto2, by=c("Site", "Day", "ProteinAcc"))
+acc<- left_join(acc, below2, by=c("Site", "Day", "ProteinAcc"))
+acc<- left_join(acc, both2, by=c("Site", "Day", "ProteinAcc"))
+acc <- acc %>% pivot_longer(c(ProteinAcc, BeeAcc_1, BeeAcc_2, BeeAcc_3, BeeAcc_4), names_to = "Trend", values_to = "acc")
+acc <- acc %>% drop_na() #remove na rows
+  
+#plot
+Fig4C<- ggplot(acc, aes(x = Day, y = acc, color = Trend, linetype = Trend)) +
+  stat_smooth(aes(fill= Trend), method="glm", se=TRUE, fill = "grey50", size = 1.5, alpha = .1,
+                  method.args = list(family=binomial)) +
+  ylab("Accumulation (%)") +
+  scale_linetype_manual(labels = c('Klepto', 'Above', 'Below', 'Both', 'Site Protein'), values=c(1, 1, 1, 1, 4)) +
+  scale_colour_manual(labels = c('Klepto', 'Above', 'Below', 'Both', 'Site Protein'), values=cbPalette) +
+  theme_classic()
+
+fig4<-ggarrange(Fig4A, Fig4B, Fig4C,
+          labels = "auto",
+          ncol = 1, nrow = 3, legend="right") 
+
+ggsave("Fig4_800.tiff", width = 9, height = 15, device='tiff', dpi=800)
+
+```
+
+## Determining phenological mismatches
 
 50% LARGE
 ```{r}
