@@ -1,7 +1,7 @@
 ---
 title: "Mismatch of Bees & Nutrition"
 author: "Cora Davies"
-date: "10/31/2022"
+date: "01/02/2022"
 output: html_document
 ---
 
@@ -615,67 +615,6 @@ chisq.test(beesize_meadowsize[3:5])
 
 ```
 
-#Chi-square test for nesting vs. time and meadow size
-
-```{r, warning=F}
-#BEE NESTING
-#bee nesting versus time (sample period)
-beenest_time <- Bees3 %>% 
-  group_by(Sample, Nest1) %>% 
-  summarize(IntTotal = length(unique(ID)))
-
-beenest_time$Date <- c("May 21", "May 21", "May 21", 
-                       "June 3", "June 3", "June 3", "June 3",
-                       "June 18", "June 18", "June 18", "June 18", 
-                       "July 1", "July 1", "July 1", 
-                       "July 14","July 14","July 14", "July 14", 
-                       "July 28","July 28","July 28", "July 28", 
-                       "Aug. 11", "Aug. 11", "Aug. 11", "Aug. 11", 
-                       "Aug. 21","Aug. 21",
-                       "Sept. 12","Sept. 12","Sept. 12","Sept. 12")
-
-#visualize
-fig3c<- ggplot(beenest_time, aes(x = as.factor(Date), y = IntTotal, fill = Nest1)) + 
-  geom_histogram(stat = "identity", position = "fill") +
-  xlab("Sample date") +
-  ylab("Percent abundance (%)") +
-  scale_fill_manual(values=cbPalette)+
-  guides(color = guide_legend(title = "Nesting behavior"))+ 
-  theme_classic()
-
-#test
-beenest_time <- beenest_time %>%
-  spread(key = Nest1, value = IntTotal)
-
-beenest_time$Sample <- as.factor(beenest_time$Sample)
-beenest_time[is.na(beenest_time)] <- 0
-
-chisq.test(beenest_time[3:6])
-
-    
-#bee body size versus meadow size
-beenest_meadowsize <- Bees3 %>% 
-  group_by(Site, Nest1) %>% 
-  summarize(IntTotal = length(unique(ID)))
-
-beenest_meadowsize <- left_join(beenest_meadowsize, SiteInfo, by="Site")
-
-#visualize
-fig3d<- ggplot(beenest_meadowsize, aes(x = as.factor(Size), y = IntTotal, fill = Nest1)) + 
-  geom_histogram(stat = "identity", position = "fill") +
-  xlab("Canopy gap size (ha)") +
-  ylab("Percent abundance (%)") +
-  scale_fill_manual(values=cbPalette)+
-  theme_classic()
-
-#Test
-beenest_meadowsize <- beenest_meadowsize %>%
-  spread(key = Nest1, value = IntTotal)
-beenest_meadowsize[is.na(beenest_meadowsize)] <- 0
-
-chisq.test(beenest_meadowsize[3:6])
-
-```
 #Chi-square test for sociality vs. time and meadow size
 
 ```{r, warning=F}
@@ -696,7 +635,7 @@ beesoc_time$Date <- c("May 21", "May 21", "May 21", "May 21",
                        "Sept. 12","Sept. 12","Sept. 12","Sept. 12")
 
 #visualize
-fig3e<- ggplot(beesoc_time, aes(x = as.factor(Date), y = IntTotal, fill = Sociality)) + 
+fig3c<- ggplot(beesoc_time, aes(x = as.factor(Date), y = IntTotal, fill = Sociality)) + 
   geom_histogram(stat = "identity", position = "fill") +
   xlab("Sample date") +
   ylab("Percent abundance (%)") +
@@ -721,7 +660,7 @@ beesoc_meadowsize <- Bees3 %>%
 beesoc_meadowsize <- left_join(beesoc_meadowsize, SiteInfo, by="Site")
 
 #visualize
-fig3f<- ggplot(beesoc_meadowsize, aes(x = as.factor(Size), y = IntTotal, fill = Sociality)) + 
+fig3d<- ggplot(beesoc_meadowsize, aes(x = as.factor(Size), y = IntTotal, fill = Sociality)) + 
   geom_histogram(stat = "identity", position = "fill") +
   xlab("Canopy gap size (ha)") +
   ylab("Percent abundance (%)") +
@@ -737,14 +676,89 @@ chisq.test(beesoc_meadowsize[3:6])
 
 ```
 
+#Chi-square test for nesting vs. time and meadow size
+
+```{r, warning=F}
+#BEE NESTING
+#bee nesting versus time (sample period)
+beenest_time <- Bees3 %>% 
+  group_by(Sample, Nest1) %>% 
+  summarize(IntTotal = length(unique(ID)))
+
+beenest_time$Date <- c("May 21", "May 21", "May 21", 
+                       "June 3", "June 3", "June 3", "June 3",
+                       "June 18", "June 18", "June 18", "June 18", 
+                       "July 1", "July 1", "July 1", 
+                       "July 14","July 14","July 14", "July 14", 
+                       "July 28","July 28","July 28", "July 28", 
+                       "Aug. 11", "Aug. 11", "Aug. 11", "Aug. 11", 
+                       "Aug. 21","Aug. 21",
+                       "Sept. 12","Sept. 12","Sept. 12","Sept. 12")
+
+#visualize
+fig3e<- ggplot(beenest_time, aes(x = as.factor(Date), y = IntTotal, fill = factor(Nest1, levels=c("klepto", "above", "below", "both")))) + 
+  geom_histogram(stat = "identity", position = "fill") +
+  labs(fill = "Nesting") +
+  xlab("Sample date") +
+  ylab("Percent abundance (%)") +
+  scale_fill_manual(values=cbPalette)+
+  guides(color = guide_legend(title = "Nesting behavior"))+ 
+  theme_classic()
+
+#test
+beenest_time <- beenest_time %>%
+  spread(key = Nest1, value = IntTotal)
+
+beenest_time$Sample <- as.factor(beenest_time$Sample)
+beenest_time[is.na(beenest_time)] <- 0
+
+chisq.test(beenest_time[3:6])
+
+    
+#bee body size versus meadow size
+beenest_meadowsize <- Bees3 %>% 
+  group_by(Site, Nest1) %>% 
+  summarize(IntTotal = length(unique(ID)))
+
+beenest_meadowsize <- left_join(beenest_meadowsize, SiteInfo, by="Site")
+
+#visualize
+fig3f<- ggplot(beenest_meadowsize, aes(x = as.factor(Size), y = IntTotal, fill = factor(Nest1, levels=c("klepto", "above", "below", "both")))) + 
+  geom_histogram(stat = "identity", position = "fill") +
+  labs(fill = "Nesting") +
+  xlab("Canopy gap size (ha)") +
+  ylab("Percent abundance (%)") +
+  scale_fill_manual(values=cbPalette)+
+  theme_classic()
+
+#Test
+beenest_meadowsize <- beenest_meadowsize %>%
+  spread(key = Nest1, value = IntTotal)
+beenest_meadowsize[is.na(beenest_meadowsize)] <- 0
+
+chisq.test(beenest_meadowsize[3:6])
+
+```
+
+
 
 Create figure 3. 
 
 ```{r}
 #Combine all figures 
-figure3<- ggarrange(fig3a, fig3b, fig3c, fig3d, fig3e, fig3f,
+fig3_1<- ggarrange(fig3a, fig3b,
                     labels = "auto",
-                    ncol = 2, nrow = 3, common.legend=FALSE,legend="right")
+                    ncol = 2, nrow = 1, common.legend=TRUE,legend="right")
+fig3_2<- ggarrange(fig3c, fig3d,
+                    labels = c("c", "d"),
+                    ncol = 2, nrow = 1, common.legend=TRUE,legend="right")
+fig3_3<- ggarrange(fig3e, fig3f,
+                    labels = c("e", "f"),
+                    ncol = 2, nrow = 1, common.legend=TRUE,legend="right")
+
+
+figure3<- ggarrange(fig3_1, fig3_2, fig3_3,
+                    ncol = 1, nrow = 3)
 
 ggsave("Fig3_800.tiff", width = 12, height = 14, device='tiff', dpi=800)
 
@@ -826,30 +840,6 @@ index2$Names <- "name"
 index2$Names[1:5] = c("CADU4", "HEVI4", "LUAR3", "GECA3", "CAGU")
 
 #visualize index (ternary plot)
-
-Fig6 <- index2 %>%
-  ggtern(aes(x = concentration, y = IntTotal, z = IntRich, label=Names)) +
-  geom_point(size=2, aes(fill=Status, color=Status)) +
-  geom_point(data=index2[index2$group == "important",], size=4, shape=18,
-             aes(color=Status)) +
-   geom_text(check_overlap = TRUE, size=4,
-             aes(label=ifelse(group=="important",as.character(Names),'')),
-             hjust=0,vjust=0) +
-  geom_text(check_overlap = FALSE, size=4,
-             aes(label=ifelse(Names=="GECA3",as.character(Names),'')),
-             hjust=1,vjust=0) +
-  labs(x= "", 
-       xarrow= "Protein concentration", 
-       y = "", 
-       yarrow = "Interaction abundance", 
-       z="", 
-       zarrow="Interaction richness")+
-  theme_latex(TRUE) + 
-  theme_bw() +
-theme_arrownormal() + 
- scale_colour_manual(values=cbPalette) 
-
-#UPDATED FIGURE
 Fig6 <- index2 %>%
   ggtern(aes(x = concentration, y = IntTotal, z = IntRich, label=Names)) +
   geom_point(size=2, aes(fill=Status, color=Status)) +
@@ -1443,29 +1433,6 @@ stat.test33 <- mismatch_all %>% t_test(Mismatch33 ~ 1, mu = 0)
 stat.test50 <- mismatch_all %>% t_test(Mismatch50 ~ 1, mu = 0)
 stat.test90 <- mismatch_all %>% t_test(Mismatch90 ~ 1, mu = 0)
 
-# Visualization
-# Create the box-plot
-bxp33 <- ggboxplot(
-  mismatch_all$Mismatch33, width = 0.5, add = c("mean"), 
-  ylab = "Mismatch 33% (Days)", xlab = FALSE
-  )+
-  labs(subtitle = get_test_label(stat.test33, detailed = TRUE))
-bxp50 <- ggboxplot(
-  mismatch_all$Mismatch50, width = 0.5, add = c("mean"), 
-  ylab = "Mismatch 50% (Days)", xlab = FALSE
-  )+
-  labs(subtitle = get_test_label(stat.test50, detailed = TRUE))
-bxp90 <- ggboxplot(
-  mismatch_all$Mismatch90, width = 0.5, add = c("mean"), 
-  ylab = "Mismatch 90% (Days)", xlab = FALSE
-  )+
-  labs(subtitle = get_test_label(stat.test90, detailed = TRUE))
-
-#combined
-ggarrange(bxp33, bxp50, bxp90,
-          labels = "auto",
-          ncol = 3, nrow = 1, common.legend=FALSE) 
-
 ```
 
 
@@ -1837,8 +1804,6 @@ Fig4B<- ggplot(acc, aes(x = Day, y = acc, color = Trend, linetype = Trend)) +
   scale_colour_manual(labels = c('Klepto', 'Multiple', 'Social', 'Solitary', 'Site Protein'), values=cbPalette) +
   theme_classic()
 
-ggsave("Fig4_800.tiff", width = 9, height = 5, device='tiff', dpi=800)
-
 ```
 
 ##Phenological mismatch comparing nesting habitat
@@ -1967,6 +1932,45 @@ ggsave("Fig4_800.tiff", width = 9, height = 5, device='tiff', dpi=800)
          BeeAcc_4 = cum_B/Total_B)
 ```
 
+#Create models
+```{r, warning = FALSE}
+##Split data by site 
+siteList_a <- split(klepto_edit, klepto_edit$Site, drop=TRUE) 
+siteList_b <- split(above_edit, above_edit$Site) 
+siteList_c <- split(below_edit, below_edit$Site) 
+siteList_d <- split(both_edit, both_edit$Site) 
+
+  #kelpto
+Model_Protein_a <- lapply(siteList_a, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+Model_Bee_a <- lapply(siteList_a, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc_1, silent = TRUE, useLog=FALSE)
+  })
+  #above
+Model_Protein_b <- lapply(siteList_b, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+Model_Bee_b <- lapply(siteList_b, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc_2, silent = TRUE, useLog=FALSE)
+  })
+  #below
+Model_Protein_c <- lapply(siteList_c, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+Model_Bee_c <- lapply(siteList_c, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc_3, silent = TRUE, useLog=FALSE)
+  })
+  #both
+Model_Protein_d <- lapply(siteList_d, function(tmp){
+  nplr(tmp$Day, tmp$ProteinAcc, silent = TRUE, useLog=FALSE)
+  })
+Model_Bee_d <- lapply(siteList_d, function(tmp){
+  nplr(tmp$Day, tmp$BeeAcc_4, silent = TRUE, useLog=FALSE)
+  })
+
+```
+
 #visualize data
 
 ```{r}
@@ -2001,382 +2005,62 @@ ggsave("Fig4_800.tiff", width = 9, height = 15, device='tiff', dpi=800)
 
 ## Determining phenological mismatches
 
-50% LARGE
+1) BODY SIZE
+  a) 33% temporal distance
 ```{r}
-#Site1
-P1_50_l<-getEstimates(Model_Protein_l$`1`, .5)
-B1_50_l<-getEstimates(Model_Bee_l$`1`, .5)
-#Site2
-P2_50_l<-getEstimates(Model_Protein_l$`2`, .5)
-B2_50_l<-getEstimates(Model_Bee_l$`2`, .5)
-#Site3
-P3_50_l<-getEstimates(Model_Protein_l$`3`, .5)
-B3_50_l<-getEstimates(Model_Bee_l$`3`, .5)
-#Site4
-P4_50_l<-getEstimates(Model_Protein_l$`4`, .5)
-B4_50_l<-getEstimates(Model_Bee_l$`4`, .5)
-#Site5
-P5_50_l<-getEstimates(Model_Protein_l$`5`, .5)
-B5_50_l<-getEstimates(Model_Bee_l$`5`, .5)
-#Site6
-P6_50_l<-getEstimates(Model_Protein_l$`6`, .5)
-B6_50_l<-getEstimates(Model_Bee_l$`6`, .5)
-#Site7
-P7_50_l<-getEstimates(Model_Protein_l$`7`, .5)
-B7_50_l<-getEstimates(Model_Bee_l$`7`, .5)
-#Site8
-P8_50_l<-getEstimates(Model_Protein_l$`8`, .5)
-B8_50_l<-getEstimates(Model_Bee_l$`8`, .5)
-
-
-#Subtract 50% estimates (protein-bee=mismatch)
-mismatch50_l<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+# BODY SIZE: 33% temporal distance
+  #large
+    #protein
+    P_33_size_l <- lapply(Model_Protein_l, function(x){
+      getEstimates(x, .33)}) #estimates from protein model
+    P_33_size_l <-bind_rows(P_33_size_l, .id = "Site")
+    #bees
+    B_33_size_l <- lapply(Model_Bee_l, function(x){
+     getEstimates(x, .33)}) #estimated from bee model
+    B_33_size_l <-bind_rows(B_33_size_l, .id = "Site")
+    #calculate mismatch
+    mismatch33_size_l<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
            Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
-           Mismatch50_l=c((P1_50_l$x-B1_50_l$x), (P2_50_l$x-B2_50_l$x), (P3_50_l$x-B3_50_l$x), 
-                      (P4_50_l$x-B4_50_l$x), (P5_50_l$x-B5_50_l$x), (P6_50_l$x-B6_50_l$x),
-                      (P7_50_l$x-B7_50_l$x),(P8_50_l$x-B8_50_l$x))
-)
-
-```
-
-50% MID
-```{r}
-#Site1
-P1_50_m<-getEstimates(Model_Protein_m$`1`, .5)
-B1_50_m<-getEstimates(Model_Bee_m$`1`, .5)
-#Site2
-P2_50_m<-getEstimates(Model_Protein_m$`2`, .5)
-B2_50_m<-getEstimates(Model_Bee_m$`2`, .5)
-#Site3
-P3_50_m<-getEstimates(Model_Protein_m$`3`, .5)
-B3_50_m<-getEstimates(Model_Bee_m$`3`, .5)
-#Site4
-P4_50_m<-getEstimates(Model_Protein_m$`4`, .5)
-B4_50_m<-getEstimates(Model_Bee_m$`4`, .5)
-#Site5
-P5_50_m<-getEstimates(Model_Protein_m$`5`, .5)
-B5_50_m<-getEstimates(Model_Bee_m$`5`, .5)
-#Site6
-P6_50_m<-getEstimates(Model_Protein_m$`6`, .5)
-B6_50_m<-getEstimates(Model_Bee_m$`6`, .5)
-#Site7
-P7_50_m<-getEstimates(Model_Protein_m$`7`, .5)
-B7_50_m<-getEstimates(Model_Bee_m$`7`, .5)
-#Site8
-P8_50_m<-getEstimates(Model_Protein_m$`8`, .5)
-B8_50_m<-getEstimates(Model_Bee_m$`8`, .5)
-
-
-#Subtract 50% estimates (protein-bee=mismatch)
-mismatch50_m<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Mismatch33_l=(P_33_size_l$x-B_33_size_l$x)) #calculate mismatch
+  #medium
+    P_33_size_m <- lapply(Model_Protein_m, function(x){
+      getEstimates(x, .33)}) #estimates from protein model
+    P_33_size_m <-bind_rows(P_33_size_m, .id = "Site")
+    #bees
+    B_33_size_m <- lapply(Model_Bee_m, function(x){
+     getEstimates(x, .33)}) #estimated from bee model
+    B_33_size_m <-bind_rows(B_33_size_m, .id = "Site")
+    #calculate mismatch
+    mismatch33_size_m<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
            Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
-           Mismatch50_m=c((P1_50_m$x-B1_50_m$x), (P2_50_m$x-B2_50_m$x), (P3_50_m$x-B3_50_m$x), 
-                      (P4_50_m$x-B4_50_m$x), (P5_50_m$x-B5_50_m$x), (P6_50_m$x-B6_50_m$x),
-                      (P7_50_m$x-B7_50_m$x),(P8_50_m$x-B8_50_m$x))
-)
-
-```
-
-50% SMALL
-```{r}
-#Site1
-P1_50_s<-getEstimates(Model_Protein_s$`1`, .5)
-B1_50_s<-getEstimates(Model_Bee_s$`1`, .5)
-#Site2
-P2_50_s<-getEstimates(Model_Protein_s$`2`, .5)
-B2_50_s<-getEstimates(Model_Bee_s$`2`, .5)
-#Site3
-P3_50_s<-getEstimates(Model_Protein_s$`3`, .5)
-B3_50_s<-getEstimates(Model_Bee_s$`3`, .5)
-#Site4
-P4_50_s<-getEstimates(Model_Protein_s$`4`, .5)
-B4_50_s<-getEstimates(Model_Bee_s$`4`, .5)
-#Site5
-P5_50_s<-getEstimates(Model_Protein_s$`5`, .5)
-B5_50_s<-getEstimates(Model_Bee_s$`5`, .5)
-#Site6
-P6_50_s<-getEstimates(Model_Protein_s$`6`, .5)
-B6_50_s<-getEstimates(Model_Bee_s$`6`, .5)
-#Site7
-P7_50_s<-getEstimates(Model_Protein_s$`7`, .5)
-B7_50_s<-getEstimates(Model_Bee_s$`7`, .5)
-#Site8
-P8_50_s<-getEstimates(Model_Protein_s$`8`, .5)
-B8_50_s<-getEstimates(Model_Bee_s$`8`, .5)
-
-
-#Subtract 50% estimates (protein-bee=mismatch)
-mismatch50_s<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Mismatch33_m=(P_33_size_m$x-B_33_size_m$x)) #calculate mismatch
+  #small
+    P_33_size_s <- lapply(Model_Protein_s, function(x){
+      getEstimates(x, .33)}) #estimates from protein model
+    P_33_size_s <-bind_rows(P_33_size_s, .id = "Site")
+    #bees
+    B_33_size_s <- lapply(Model_Bee_s, function(x){
+     getEstimates(x, .33)}) #estimated from bee model
+    B_33_size_s <-bind_rows(B_33_size_s, .id = "Site")
+    #calculate mismatch
+    mismatch33_size_s<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
            Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
-           Mismatch50_s=c((P1_50_s$x-B1_50_s$x), (P2_50_s$x-B2_50_s$x), (P3_50_s$x-B3_50_s$x), 
-                      (P4_50_s$x-B4_50_s$x), (P5_50_s$x-B5_50_s$x), (P6_50_s$x-B6_50_s$x),
-                      (P7_50_s$x-B7_50_s$x),(P8_50_s$x-B8_50_s$x))
-)
-
-```
-
-33% LARGE
-```{r}
-#Site1
-P1_33_l<-getEstimates(Model_Protein_l$`1`, .33)
-B1_33_l<-getEstimates(Model_Bee_l$`1`, .33)
-#Site2
-P2_33_l<-getEstimates(Model_Protein_l$`2`, .33)
-B2_33_l<-getEstimates(Model_Bee_l$`2`, .33)
-#Site3
-P3_33_l<-getEstimates(Model_Protein_l$`3`, .33)
-B3_33_l<-getEstimates(Model_Bee_l$`3`, .33)
-#Site4
-P4_33_l<-getEstimates(Model_Protein_l$`4`, .33)
-B4_33_l<-getEstimates(Model_Bee_l$`4`, .33)
-#Site5
-P5_33_l<-getEstimates(Model_Protein_l$`5`, .33)
-B5_33_l<-getEstimates(Model_Bee_l$`5`, .33)
-#Site6
-P6_33_l<-getEstimates(Model_Protein_l$`6`, .33)
-B6_33_l<-getEstimates(Model_Bee_l$`6`, .33)
-#Site7
-P7_33_l<-getEstimates(Model_Protein_l$`7`, .33)
-B7_33_l<-getEstimates(Model_Bee_l$`7`, .33)
-#Site8
-P8_33_l<-getEstimates(Model_Protein_l$`8`, .33)
-B8_33_l<-getEstimates(Model_Bee_l$`8`, .33)
-
-
-#Subtract 33% estimates (protein-bee=mismatch)
-mismatch33_l<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
-           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
-           Mismatch33_l=c((P1_33_l$x-B1_33_l$x), (P2_33_l$x-B2_33_l$x), (P3_33_l$x-B3_33_l$x), 
-                      (P4_33_l$x-B4_33_l$x), (P5_33_l$x-B5_33_l$x), (P6_33_l$x-B6_33_l$x),
-                      (P7_33_l$x-B7_33_l$x),(P8_33_l$x-B8_33_l$x))
-)
-
-```
-
-33% MID
-```{r}
-#Site1
-P1_33_m<-getEstimates(Model_Protein_m$`1`, .33)
-B1_33_m<-getEstimates(Model_Bee_m$`1`, .33)
-#Site2
-P2_33_m<-getEstimates(Model_Protein_m$`2`, .33)
-B2_33_m<-getEstimates(Model_Bee_m$`2`, .33)
-#Site3
-P3_33_m<-getEstimates(Model_Protein_m$`3`, .33)
-B3_33_m<-getEstimates(Model_Bee_m$`3`, .33)
-#Site4
-P4_33_m<-getEstimates(Model_Protein_m$`4`, .33)
-B4_33_m<-getEstimates(Model_Bee_m$`4`, .33)
-#Site5
-P5_33_m<-getEstimates(Model_Protein_m$`5`, .33)
-B5_33_m<-getEstimates(Model_Bee_m$`5`, .33)
-#Site6
-P6_33_m<-getEstimates(Model_Protein_m$`6`, .33)
-B6_33_m<-getEstimates(Model_Bee_m$`6`, .33)
-#Site7
-P7_33_m<-getEstimates(Model_Protein_m$`7`, .33)
-B7_33_m<-getEstimates(Model_Bee_m$`7`, .33)
-#Site8
-P8_33_m<-getEstimates(Model_Protein_m$`8`, .33)
-B8_33_m<-getEstimates(Model_Bee_m$`8`, .33)
-
-
-#Subtract 33% estimates (protein-bee=mismatch)
-mismatch33_m<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
-           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
-           Mismatch33_m=c((P1_33_m$x-B1_33_m$x), (P2_33_m$x-B2_33_m$x), (P3_33_m$x-B3_33_m$x), 
-                      (P4_33_m$x-B4_33_m$x), (P5_33_m$x-B5_33_m$x), (P6_33_m$x-B6_33_m$x),
-                      (P7_33_m$x-B7_33_m$x),(P8_33_m$x-B8_33_m$x))
-)
-
-```
-
-33% SMALL
-```{r}
-#Site1
-P1_33_s<-getEstimates(Model_Protein_s$`1`, .33)
-B1_33_s<-getEstimates(Model_Bee_s$`1`, .33)
-#Site2
-P2_33_s<-getEstimates(Model_Protein_s$`2`, .33)
-B2_33_s<-getEstimates(Model_Bee_s$`2`, .33)
-#Site3
-P3_33_s<-getEstimates(Model_Protein_s$`3`, .33)
-B3_33_s<-getEstimates(Model_Bee_s$`3`, .33)
-#Site4
-P4_33_s<-getEstimates(Model_Protein_s$`4`, .33)
-B4_33_s<-getEstimates(Model_Bee_s$`4`, .33)
-#Site5
-P5_33_s<-getEstimates(Model_Protein_s$`5`, .33)
-B5_33_s<-getEstimates(Model_Bee_s$`5`, .33)
-#Site6
-P6_33_s<-getEstimates(Model_Protein_s$`6`, .33)
-B6_33_s<-getEstimates(Model_Bee_s$`6`, .33)
-#Site7
-P7_33_s<-getEstimates(Model_Protein_s$`7`, .33)
-B7_33_s<-getEstimates(Model_Bee_s$`7`, .33)
-#Site8
-P8_33_s<-getEstimates(Model_Protein_s$`8`, .33)
-B8_33_s<-getEstimates(Model_Bee_s$`8`, .33)
-
-
-#Subtract 33% estimates (protein-bee=mismatch)
-mismatch33_s<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
-           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
-           Mismatch33_s=c((P1_33_s$x-B1_33_s$x), (P2_33_s$x-B2_33_s$x), (P3_33_s$x-B3_33_s$x), 
-                      (P4_33_s$x-B4_33_s$x), (P5_33_s$x-B5_33_s$x), (P6_33_s$x-B6_33_s$x),
-                      (P7_33_s$x-B7_33_s$x),(P8_33_s$x-B8_33_s$x))
-)
-
-```
-
-90% LARGE
-```{r}
-#Site1
-P1_90_l<-getEstimates(Model_Protein_l$`1`, .9)
-B1_90_l<-getEstimates(Model_Bee_l$`1`, .9)
-#Site2
-P2_90_l<-getEstimates(Model_Protein_l$`2`, .9)
-B2_90_l<-getEstimates(Model_Bee_l$`2`, .9)
-#Site3
-P3_90_l<-getEstimates(Model_Protein_l$`3`, .9)
-B3_90_l<-getEstimates(Model_Bee_l$`3`, .9)
-#Site4
-P4_90_l<-getEstimates(Model_Protein_l$`4`, .9)
-B4_90_l<-getEstimates(Model_Bee_l$`4`, .9)
-#Site5
-P5_90_l<-getEstimates(Model_Protein_l$`5`, .9)
-B5_90_l<-getEstimates(Model_Bee_l$`5`, .9)
-#Site6
-P6_90_l<-getEstimates(Model_Protein_l$`6`, .9)
-B6_90_l<-getEstimates(Model_Bee_l$`6`, .9)
-#Site7
-P7_90_l<-getEstimates(Model_Protein_l$`7`, .9)
-B7_90_l<-getEstimates(Model_Bee_l$`7`, .9)
-#Site8
-P8_90_l<-getEstimates(Model_Protein_l$`8`, .9)
-B8_90_l<-getEstimates(Model_Bee_l$`8`, .9)
-
-
-#Subtract 90% estimates (protein-bee=mismatch)
-mismatch90_l<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
-           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
-           Mismatch90_l=c((P1_90_l$x-B1_90_l$x), (P2_90_l$x-B2_90_l$x), (P3_90_l$x-B3_90_l$x), 
-                      (P4_90_l$x-B4_90_l$x), (P5_90_l$x-B5_90_l$x), (P6_90_l$x-B6_90_l$x),
-                      (P7_90_l$x-B7_90_l$x),(P8_90_l$x-B8_90_l$x))
-)
-
-```
-
-90% MID
-```{r}
-#Site1
-P1_90_m<-getEstimates(Model_Protein_m$`1`, .9)
-B1_90_m<-getEstimates(Model_Bee_m$`1`, .9)
-#Site2
-P2_90_m<-getEstimates(Model_Protein_m$`2`, .9)
-B2_90_m<-getEstimates(Model_Bee_m$`2`, .9)
-#Site3
-P3_90_m<-getEstimates(Model_Protein_m$`3`, .9)
-B3_90_m<-getEstimates(Model_Bee_m$`3`, .9)
-#Site4
-P4_90_m<-getEstimates(Model_Protein_m$`4`, .9)
-B4_90_m<-getEstimates(Model_Bee_m$`4`, .9)
-#Site5
-P5_90_m<-getEstimates(Model_Protein_m$`5`, .9)
-B5_90_m<-getEstimates(Model_Bee_m$`5`, .9)
-#Site6
-P6_90_m<-getEstimates(Model_Protein_m$`6`, .9)
-B6_90_m<-getEstimates(Model_Bee_m$`6`, .9)
-#Site7
-P7_90_m<-getEstimates(Model_Protein_m$`7`, .9)
-B7_90_m<-getEstimates(Model_Bee_m$`7`, .9)
-#Site8
-P8_90_m<-getEstimates(Model_Protein_m$`8`, .9)
-B8_90_m<-getEstimates(Model_Bee_m$`8`, .9)
-
-
-#Subtract 90% estimates (protein-bee=mismatch)
-mismatch90_m<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
-           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
-           Mismatch90_m=c((P1_90_m$x-B1_90_m$x), (P2_90_m$x-B2_90_m$x), (P3_90_m$x-B3_90_m$x), 
-                      (P4_90_m$x-B4_90_m$x), (P5_90_m$x-B5_90_m$x), (P6_90_m$x-B6_90_m$x),
-                      (P7_90_m$x-B7_90_m$x),(P8_90_m$x-B8_90_m$x))
-)
-
-```
-
-90% SMALL
-```{r}
-#Site1
-P1_90_s<-getEstimates(Model_Protein_s$`1`, .9)
-B1_90_s<-getEstimates(Model_Bee_s$`1`, .9)
-#Site2
-P2_90_s<-getEstimates(Model_Protein_s$`2`, .9)
-B2_90_s<-getEstimates(Model_Bee_s$`2`, .9)
-#Site3
-P3_90_s<-getEstimates(Model_Protein_s$`3`, .9)
-B3_90_s<-getEstimates(Model_Bee_s$`3`, .9)
-#Site4
-P4_90_s<-getEstimates(Model_Protein_s$`4`, .9)
-B4_90_s<-getEstimates(Model_Bee_s$`4`, .9)
-#Site5
-P5_90_s<-getEstimates(Model_Protein_s$`5`, .9)
-B5_90_s<-getEstimates(Model_Bee_s$`5`, .9)
-#Site6
-P6_90_s<-getEstimates(Model_Protein_s$`6`, .9)
-B6_90_s<-getEstimates(Model_Bee_s$`6`, .9)
-#Site7
-P7_90_s<-getEstimates(Model_Protein_s$`7`, .9)
-B7_90_s<-getEstimates(Model_Bee_s$`7`, .9)
-#Site8
-P8_90_s<-getEstimates(Model_Protein_s$`8`, .9)
-B8_90_s<-getEstimates(Model_Bee_s$`8`, .9)
-
-
-#Subtract 10% estimates (protein-bee=mismatch)
-mismatch90_s<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
-           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
-           Mismatch90_s=c((P1_90_s$x-B1_90_s$x), (P2_90_s$x-B2_90_s$x), (P3_90_s$x-B3_90_s$x), 
-                      (P4_90_s$x-B4_90_s$x), (P5_90_s$x-B5_90_s$x), (P6_90_s$x-B6_90_s$x),
-                      (P7_90_s$x-B7_90_s$x),(P8_90_s$x-B8_90_s$x))
-)
-
-```
-
-## Compare mismatch between body size: ANOVA
-
-```{r}
-#Create data table for all mismatches
-  # 33% mismatch
-Mismatch33 <- inner_join(mismatch33_l, mismatch33_m, by = c("Site","Size"))  
-Mismatch33 <- inner_join(Mismatch33, mismatch33_s, by = c("Site","Size"))
-#rename columns
-Mismatch33 <- rename(Mismatch33, c(Large=Mismatch33_l, Medium=Mismatch33_m, Small=Mismatch33_s))
-#wide to long format
-Mismatch33 = gather(Mismatch33, Bodysize, mismatch, Large:Small, factor_key=TRUE)
-
-# 50% mismatch
-Mismatch50 <- inner_join(mismatch50_l, mismatch50_m, by = c("Site","Size"))  
-Mismatch50 <- inner_join(Mismatch50, mismatch50_s, by = c("Site","Size"))
-#rename columns
-Mismatch50 <- rename(Mismatch50, c(Large=Mismatch50_l, Medium=Mismatch50_m, Small=Mismatch50_s))
-#wide to long format
-Mismatch50 = gather(Mismatch50, Bodysize, mismatch, Large:Small, factor_key=TRUE)
-
-# 90% mismatch
-Mismatch90 <- inner_join(mismatch90_l, mismatch90_m, by = c("Site","Size"))  
-Mismatch90 <- inner_join(Mismatch90, mismatch90_s, by = c("Site","Size"))
-#rename columns
-Mismatch90 <- rename(Mismatch90, c(Large=Mismatch90_l, Medium=Mismatch90_m, Small=Mismatch90_s))
-#wide to long format
-Mismatch90 = gather(Mismatch90, Bodysize, mismatch, Large:Small, factor_key=TRUE)
+           Mismatch33_s=(P_33_size_s$x-B_33_size_s$x)) #calculate mismatch
+    
+   #combine data 
+  Mismatch_size_33 <- inner_join(mismatch33_size_l, mismatch33_size_m, by = c("Site","Size"))  
+  Mismatch_size_33 <- inner_join(Mismatch_size_33, mismatch33_size_s, by = c("Site","Size"))
+  #rename columns
+  Mismatch_size_33 <- rename(Mismatch_size_33, c(Large=Mismatch33_l, Medium=Mismatch33_m, Small=Mismatch33_s))
+  #wide to long format
+  Mismatch_size_33 = gather(Mismatch_size_33, Bodysize, mismatch, Large:Small, factor_key=TRUE)
 
 # box plot with ANOVA tests/Tukey HSD
 # 33% mismatch
-model<- aov(Mismatch33$mismatch ~ Mismatch33$Bodysize )
+model<- aov(Mismatch_size_33$mismatch ~ Mismatch_size_33$Bodysize )
 TukeyHSD(model, conf.level=.95)
 
-Mismatch33_plot<- ggplot(Mismatch33, aes(x=Bodysize, y=mismatch, fill=Bodysize)) +
+fig5a<- ggplot(Mismatch_size_33, aes(x=Bodysize, y=mismatch, fill=Bodysize)) +
   geom_boxplot(outlier.shape = NA, aes(fill=Bodysize))+ 
   ylab("33% Temporal distance (days)")+
    xlab(element_blank())+
@@ -2384,51 +2068,682 @@ Mismatch33_plot<- ggplot(Mismatch33, aes(x=Bodysize, y=mismatch, fill=Bodysize))
   theme(axis.text.x=element_blank(),
       axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
-  stat_summary(geom = 'text', label = c("a","b","c"), fun = max, hjust=1) + 
-  scale_fill_manual(values=cbPalette)
+  stat_summary(geom = 'text', label = c("a","b","b"), fun = max, hjust=1) + 
+  scale_fill_manual(values=cbPalette)   
+    
 
+```
+
+ b) 50% temporal distance
+```{r}
+# BODY SIZE: 50% temporal distance
+  #large
+    #protein
+    P_50_size_l <- lapply(Model_Protein_l, function(x){
+      getEstimates(x, .5)}) #estimates from protein model
+    P_50_size_l <-bind_rows(P_50_size_l, .id = "Site")
+    #bees
+    B_50_size_l <- lapply(Model_Bee_l, function(x){
+     getEstimates(x, .5)}) #estimated from bee model
+    B_50_size_l <-bind_rows(B_50_size_l, .id = "Site")
+    #calculate mismatch
+    mismatch50_size_l<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_l=(P_50_size_l$x-B_50_size_l$x)) #calculate mismatch
+  #medium
+    P_50_size_m <- lapply(Model_Protein_m, function(x){
+      getEstimates(x, .5)}) #estimates from protein model
+    P_50_size_m <-bind_rows(P_50_size_m, .id = "Site")
+    #bees
+    B_50_size_m <- lapply(Model_Bee_m, function(x){
+     getEstimates(x, .5)}) #estimated from bee model
+    B_50_size_m <-bind_rows(B_50_size_m, .id = "Site")
+    #calculate mismatch
+    mismatch50_size_m<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_m=(P_50_size_m$x-B_50_size_m$x)) #calculate mismatch
+  #small
+    P_50_size_s <- lapply(Model_Protein_s, function(x){
+      getEstimates(x, .5)}) #estimates from protein model
+    P_50_size_s <-bind_rows(P_50_size_s, .id = "Site")
+    #bees
+    B_50_size_s <- lapply(Model_Bee_s, function(x){
+     getEstimates(x, .5)}) #estimated from bee model
+    B_50_size_s <-bind_rows(B_50_size_s, .id = "Site")
+    #calculate mismatch
+    mismatch50_size_s<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_s=(P_50_size_s$x-B_50_size_s$x)) #calculate mismatch
+    
+   #combine data 
+  Mismatch_size_50 <- inner_join(mismatch50_size_l, mismatch50_size_m, by = c("Site","Size"))  
+  Mismatch_size_50 <- inner_join(Mismatch_size_50, mismatch50_size_s, by = c("Site","Size"))
+  #rename columns
+  Mismatch_size_50 <- rename(Mismatch_size_50, c(Large=Mismatch50_l, Medium=Mismatch50_m, Small=Mismatch50_s))
+  #wide to long format
+  Mismatch_size_50 = gather(Mismatch_size_50, Bodysize, mismatch, Large:Small, factor_key=TRUE)
+
+# box plot with ANOVA tests/Tukey HSD
 # 50% mismatch
-model<- aov(Mismatch50$mismatch ~ Mismatch50$Bodysize )
+model<- aov(Mismatch_size_50$mismatch ~ Mismatch_size_50$Bodysize )
 TukeyHSD(model, conf.level=.95)
 
-Mismatch50_plot<- ggplot(Mismatch50, aes(x=Bodysize, y=mismatch, fill=Bodysize)) +
+fig5b<- ggplot(Mismatch_size_50, aes(x=Bodysize, y=mismatch, fill=Bodysize)) +
   geom_boxplot(outlier.shape = NA, aes(fill=Bodysize))+ 
   ylab("50% Temporal distance (days)")+
-  xlab(element_blank())+
+   xlab(element_blank())+
   geom_hline(yintercept = 0, linetype=2) +
   theme(axis.text.x=element_blank(),
-      axis.ticks.x=element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), axis.line = element_line(colour = "black"))+ 
-  stat_summary(geom = 'text', label = c("a","b","b"), fun = max, hjust = 1)+ 
-  scale_fill_manual(values=cbPalette)
+      axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
+  stat_summary(geom = 'text', label = c("a","b","b"), fun = max, hjust=1) + 
+  scale_fill_manual(values=cbPalette)   
+    
 
-# 90% mismatch
-model<- aov(Mismatch90$mismatch ~ Mismatch90$Bodysize )
+```
+
+ c) 90% temporal distance
+```{r}
+# BODY SIZE: 90% temporal distance
+  #large
+    #protein
+    P_90_size_l <- lapply(Model_Protein_l, function(x){
+      getEstimates(x, .9)}) #estimates from protein model
+    P_90_size_l <-bind_rows(P_90_size_l, .id = "Site")
+    #bees
+    B_90_size_l <- lapply(Model_Bee_l, function(x){
+     getEstimates(x, .9)}) #estimated from bee model
+    B_90_size_l <-bind_rows(B_90_size_l, .id = "Site")
+    #calculate mismatch
+    mismatch90_size_l<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_l=(P_90_size_l$x-B_90_size_l$x)) #calculate mismatch
+  #medium
+    P_90_size_m <- lapply(Model_Protein_m, function(x){
+      getEstimates(x, .9)}) #estimates from protein model
+    P_90_size_m <-bind_rows(P_90_size_m, .id = "Site")
+    #bees
+    B_90_size_m <- lapply(Model_Bee_m, function(x){
+     getEstimates(x, .9)}) #estimated from bee model
+    B_90_size_m <-bind_rows(B_90_size_m, .id = "Site")
+    #calculate mismatch
+    mismatch90_size_m<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_m=(P_90_size_m$x-B_90_size_m$x)) #calculate mismatch
+  #small
+    P_90_size_s <- lapply(Model_Protein_s, function(x){
+      getEstimates(x, .9)}) #estimates from protein model
+    P_90_size_s <-bind_rows(P_90_size_s, .id = "Site")
+    #bees
+    B_90_size_s <- lapply(Model_Bee_s, function(x){
+     getEstimates(x, .9)}) #estimated from bee model
+    B_90_size_s <-bind_rows(B_90_size_s, .id = "Site")
+    #calculate mismatch
+    mismatch90_size_s<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_s=(P_90_size_s$x-B_90_size_s$x)) #calculate mismatch
+    
+   #combine data 
+  Mismatch_size_90 <- inner_join(mismatch90_size_l, mismatch90_size_m, by = c("Site","Size"))  
+  Mismatch_size_90 <- inner_join(Mismatch_size_90, mismatch90_size_s, by = c("Site","Size"))
+  #rename columns
+  Mismatch_size_90 <- rename(Mismatch_size_90, c(Large=Mismatch90_l, Medium=Mismatch90_m, Small=Mismatch90_s))
+  #wide to long format
+  Mismatch_size_90 = gather(Mismatch_size_90, Bodysize, mismatch, Large:Small, factor_key=TRUE)
+
+# box plot with ANOVA tests/Tukey HSD
+# 33% mismatch
+model<- aov(Mismatch_size_90$mismatch ~ Mismatch_size_90$Bodysize )
 TukeyHSD(model, conf.level=.95)
 
-Mismatch90_plot<- ggplot(Mismatch90, aes(x=Bodysize, y=mismatch, fill=Bodysize)) +
+fig5c<- ggplot(Mismatch_size_90, aes(x=Bodysize, y=mismatch, fill=Bodysize)) +
   geom_boxplot(outlier.shape = NA, aes(fill=Bodysize))+ 
   ylab("90% Temporal distance (days)")+
+   xlab(element_blank())+
   geom_hline(yintercept = 0, linetype=2) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), axis.line = element_line(colour = "black"))+ 
-  scale_fill_manual(values=cbPalette)
-
-
-#combined
-fig5<-ggarrange(Mismatch33_plot, Mismatch50_plot, Mismatch90_plot,
+  theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
+  scale_fill_manual(values=cbPalette)   
+    
+#ALL BODY SIZE  
+fig5_1<-ggarrange(fig5a, fig5b, fig5c,
           labels = "auto",
-          ncol = 1, nrow = 3, common.legend=TRUE, legend="bottom") 
+          ncol = 3, nrow = 1, common.legend=TRUE, legend="right") 
+```
 
-ggsave("Fig5_800.tiff", width = 5.2, height = 10, device='tiff', dpi=800)
-
-m11<-lm(mismatch~Bodysize, data=Mismatch90)
+#analysis
+```{r}
+m11<-lm(mismatch~Bodysize, data=Mismatch_size_90)
 anova(m11)
 
-m12<-lm(mismatch~Bodysize, data=Mismatch50)
+m12<-lm(mismatch~Bodysize, data=Mismatch_size_50)
 anova(m12)
 
-m13<-lm(mismatch~Bodysize, data=Mismatch33)
+m13<-lm(mismatch~Bodysize, data=Mismatch_size_33)
 anova(m13)
+```
 
+2) SOCIALITY
+  d) 33% temporal distance
+```{r}
+# SOCIALITY: 33% temporal distance
+  #klepto
+    #protein
+    P_33_soc_1 <- lapply(Model_Protein_1, function(x){
+      getEstimates(x, .33)}) #estimates from protein model
+    P_33_soc_1 <-bind_rows(P_33_soc_1, .id = "Site")
+    #bees
+    B_33_soc_1 <- lapply(Model_Bee_1, function(x){
+     getEstimates(x, .33)}) #estimated from bee model
+    B_33_soc_1 <-bind_rows(B_33_soc_1, .id = "Site")
+    #calculate mismatch
+    mismatch33_soc_1<-data.frame(Site=c(1, 2, 3, 4, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33_1=(P_33_soc_1$x-B_33_soc_1$x)) #calculate mismatch
+  #multiple
+    P_33_soc_2 <- lapply(Model_Protein_2, function(x){
+      getEstimates(x, .33)}) #estimates from protein model
+    P_33_soc_2 <-bind_rows(P_33_soc_2, .id = "Site")
+    #bees
+    B_33_soc_2 <- lapply(Model_Bee_2, function(x){
+     getEstimates(x, .33)}) #estimated from bee model
+    B_33_soc_2 <-bind_rows(B_33_soc_2, .id = "Site")
+    #calculate mismatch
+    mismatch33_soc_2<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33_2=(P_33_soc_2$x-B_33_soc_2$x)) #calculate mismatch
+  #social
+    P_33_soc_3 <- lapply(Model_Protein_3, function(x){
+      getEstimates(x, .33)}) #estimates from protein model
+    P_33_soc_3 <-bind_rows(P_33_soc_3, .id = "Site")
+    #bees
+    B_33_soc_3 <- lapply(Model_Bee_3, function(x){
+     getEstimates(x, .33)}) #estimated from bee model
+    B_33_soc_3 <-bind_rows(B_33_soc_3, .id = "Site")
+    #calculate mismatch
+    mismatch33_soc_3<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33_3=(P_33_soc_3$x-B_33_soc_3$x)) #calculate mismatch
+   #solitary
+    P_33_soc_4 <- lapply(Model_Protein_4, function(x){
+      getEstimates(x, .33)}) #estimates from protein model
+    P_33_soc_4 <-bind_rows(P_33_soc_4, .id = "Site")
+    #bees
+    B_33_soc_4 <- lapply(Model_Bee_4, function(x){
+     getEstimates(x, .33)}) #estimated from bee model
+    B_33_soc_4 <-bind_rows(B_33_soc_4, .id = "Site")
+    #calculate mismatch
+    mismatch33_soc_4<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33_4=(P_33_soc_4$x-B_33_soc_4$x)) #calculate mismatch
+    
+   #combine data 
+  Mismatch_soc_33 <- inner_join(mismatch33_soc_1, mismatch33_soc_2, by = c("Site","Size"))  
+  Mismatch_soc_33 <- inner_join(Mismatch_soc_33, mismatch33_soc_3, by = c("Site","Size"))
+  Mismatch_soc_33 <- inner_join(Mismatch_soc_33, mismatch33_soc_4, by = c("Site","Size"))
+  #rename columns
+  Mismatch_soc_33 <- rename(Mismatch_soc_33, c(Klepto=Mismatch33_1, Multiple=Mismatch33_2, Social=Mismatch33_3, Solitary=Mismatch33_4))
+  #wide to long format
+  Mismatch_soc_33 = gather(Mismatch_soc_33, Sociality, mismatch, Klepto:Solitary, factor_key=TRUE)
+
+# box plot with ANOVA tests/Tukey HSD
+# 33% mismatch
+model<- aov(Mismatch_soc_33$mismatch ~ Mismatch_soc_33$Sociality )
+TukeyHSD(model, conf.level=.95)
+
+fig5d<- ggplot(Mismatch_soc_33, aes(x=Sociality, y=mismatch, fill=Sociality)) +
+  geom_boxplot(outlier.shape = NA, aes(fill=Sociality))+ 
+  ylab("33% Temporal distance (days)")+
+   xlab(element_blank())+
+  geom_hline(yintercept = 0, linetype=2) +
+  theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
+  stat_summary(geom = 'text', label = c("a","a","b, c","a, c"), fun = max, hjust=1, vjust=-0.3) + 
+  scale_fill_manual(values=cbPalette)   
+    
+
+```
+
+ e) 50% temporal distance
+```{r}
+# SOCIALITY: 50% temporal distance
+  #klepto
+    #protein
+    P_50_soc_1 <- lapply(Model_Protein_1, function(x){
+      getEstimates(x, .5)}) #estimates from protein model
+    P_50_soc_1 <-bind_rows(P_50_soc_1, .id = "Site")
+    #bees
+    B_50_soc_1 <- lapply(Model_Bee_1, function(x){
+     getEstimates(x, .5)}) #estimated from bee model
+    B_50_soc_1 <-bind_rows(B_50_soc_1, .id = "Site")
+    #calculate mismatch
+    mismatch50_soc_1<-data.frame(Site=c(1, 2, 3, 4, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_1=(P_50_soc_1$x-B_50_soc_1$x)) #calculate mismatch
+  #multiple
+    P_50_soc_2 <- lapply(Model_Protein_2, function(x){
+      getEstimates(x, .5)}) #estimates from protein model
+    P_50_soc_2 <-bind_rows(P_50_soc_2, .id = "Site")
+    #bees
+    B_50_soc_2 <- lapply(Model_Bee_2, function(x){
+     getEstimates(x, .5)}) #estimated from bee model
+    B_50_soc_2 <-bind_rows(B_50_soc_2, .id = "Site")
+    #calculate mismatch
+    mismatch50_soc_2<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_2=(P_50_soc_2$x-B_50_soc_2$x)) #calculate mismatch
+  #social
+    P_50_soc_3 <- lapply(Model_Protein_3, function(x){
+      getEstimates(x, .5)}) #estimates from protein model
+    P_50_soc_3 <-bind_rows(P_50_soc_3, .id = "Site")
+    #bees
+    B_50_soc_3 <- lapply(Model_Bee_3, function(x){
+     getEstimates(x, .5)}) #estimated from bee model
+    B_50_soc_3 <-bind_rows(B_50_soc_3, .id = "Site")
+    #calculate mismatch
+    mismatch50_soc_3<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_3=(P_50_soc_3$x-B_50_soc_3$x)) #calculate mismatch
+   #solitary
+    P_50_soc_4 <- lapply(Model_Protein_4, function(x){
+      getEstimates(x, .5)}) #estimates from protein model
+    P_50_soc_4 <-bind_rows(P_50_soc_4, .id = "Site")
+    #bees
+    B_50_soc_4 <- lapply(Model_Bee_4, function(x){
+     getEstimates(x, .5)}) #estimated from bee model
+    B_50_soc_4 <-bind_rows(B_50_soc_4, .id = "Site")
+    #calculate mismatch
+    mismatch50_soc_4<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_4=(P_50_soc_4$x-B_50_soc_4$x)) #calculate mismatch
+    
+   #combine data 
+  Mismatch_soc_50 <- inner_join(mismatch50_soc_1, mismatch50_soc_2, by = c("Site","Size"))  
+  Mismatch_soc_50 <- inner_join(Mismatch_soc_50, mismatch50_soc_3, by = c("Site","Size"))
+  Mismatch_soc_50 <- inner_join(Mismatch_soc_50, mismatch50_soc_4, by = c("Site","Size"))
+  #rename columns
+  Mismatch_soc_50 <- rename(Mismatch_soc_50, c(Klepto=Mismatch50_1, Multiple=Mismatch50_2, Social=Mismatch50_3, Solitary=Mismatch50_4))
+  #wide to long format
+  Mismatch_soc_50 = gather(Mismatch_soc_50, Sociality, mismatch, Klepto:Solitary, factor_key=TRUE)
+
+# box plot with ANOVA tests/Tukey HSD
+# 50% mismatch
+model<- aov(Mismatch_soc_50$mismatch ~ Mismatch_soc_50$Sociality )
+TukeyHSD(model, conf.level=.95)
+
+fig5e<- ggplot(Mismatch_soc_50, aes(x=Sociality, y=mismatch, fill=Sociality)) +
+  geom_boxplot(outlier.shape = NA, aes(fill=Sociality))+ 
+  ylab("50% Temporal distance (days)")+
+   xlab(element_blank())+
+  geom_hline(yintercept = 0, linetype=2) +
+  theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
+  stat_summary(geom = 'text', label = c("a","a","b, c","a, c"), fun = max, hjust=1, vjust=-0.3) + 
+  scale_fill_manual(values=cbPalette)   
+    
+
+```
+
+f) 90% temporal distance
+```{r}
+# SOCIALITY: 90% temporal distance
+  #klepto
+    #protein
+    P_90_soc_1 <- lapply(Model_Protein_1, function(x){
+      getEstimates(x, .9)}) #estimates from protein model
+    P_90_soc_1 <-bind_rows(P_90_soc_1, .id = "Site")
+    #bees
+    B_90_soc_1 <- lapply(Model_Bee_1, function(x){
+     getEstimates(x, .9)}) #estimated from bee model
+    B_90_soc_1 <-bind_rows(B_90_soc_1, .id = "Site")
+    #calculate mismatch
+    mismatch90_soc_1<-data.frame(Site=c(1, 2, 3, 4, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_1=(P_90_soc_1$x-B_90_soc_1$x)) #calculate mismatch
+  #multiple
+    P_90_soc_2 <- lapply(Model_Protein_2, function(x){
+      getEstimates(x, .9)}) #estimates from protein model
+    P_90_soc_2 <-bind_rows(P_90_soc_2, .id = "Site")
+    #bees
+    B_90_soc_2 <- lapply(Model_Bee_2, function(x){
+     getEstimates(x, .9)}) #estimated from bee model
+    B_90_soc_2 <-bind_rows(B_90_soc_2, .id = "Site")
+    #calculate mismatch
+    mismatch90_soc_2<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_2=(P_90_soc_2$x-B_90_soc_2$x)) #calculate mismatch
+  #social
+    P_90_soc_3 <- lapply(Model_Protein_3, function(x){
+      getEstimates(x, .9)}) #estimates from protein model
+    P_90_soc_3 <-bind_rows(P_90_soc_3, .id = "Site")
+    #bees
+    B_90_soc_3 <- lapply(Model_Bee_3, function(x){
+     getEstimates(x, .9)}) #estimated from bee model
+    B_90_soc_3 <-bind_rows(B_90_soc_3, .id = "Site")
+    #calculate mismatch
+    mismatch90_soc_3<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_3=(P_90_soc_3$x-B_90_soc_3$x)) #calculate mismatch
+   #solitary
+    P_90_soc_4 <- lapply(Model_Protein_4, function(x){
+      getEstimates(x, .9)}) #estimates from protein model
+    P_90_soc_4 <-bind_rows(P_90_soc_4, .id = "Site")
+    #bees
+    B_90_soc_4 <- lapply(Model_Bee_4, function(x){
+     getEstimates(x, .9)}) #estimated from bee model
+    B_90_soc_4 <-bind_rows(B_90_soc_4, .id = "Site")
+    #calculate mismatch
+    mismatch90_soc_4<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_4=(P_90_soc_4$x-B_90_soc_4$x)) #calculate mismatch
+    
+   #combine data 
+  Mismatch_soc_90 <- inner_join(mismatch90_soc_1, mismatch90_soc_2, by = c("Site","Size"))  
+  Mismatch_soc_90 <- inner_join(Mismatch_soc_90, mismatch90_soc_3, by = c("Site","Size"))
+  Mismatch_soc_90 <- inner_join(Mismatch_soc_90, mismatch90_soc_4, by = c("Site","Size"))
+  #rename columns
+  Mismatch_soc_90 <- rename(Mismatch_soc_90, c(Klepto=Mismatch90_1, Multiple=Mismatch90_2, Social=Mismatch90_3, Solitary=Mismatch90_4))
+  #wide to long format
+  Mismatch_soc_90 = gather(Mismatch_soc_90, Sociality, mismatch, Klepto:Solitary, factor_key=TRUE)
+
+# box plot with ANOVA tests/Tukey HSD
+# 90% mismatch
+model<- aov(Mismatch_soc_90$mismatch ~ Mismatch_soc_90$Sociality )
+TukeyHSD(model, conf.level=.95)
+
+fig5f<- ggplot(Mismatch_soc_90, aes(x=Sociality, y=mismatch, fill=Sociality)) +
+  geom_boxplot(outlier.shape = NA, aes(fill=Sociality))+ 
+  ylab("90% Temporal distance (days)")+
+   xlab(element_blank())+
+  geom_hline(yintercept = 0, linetype=2) +
+  theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
+  scale_fill_manual(values=cbPalette)   
+    
+#ALL SOCIALITY
+fig5_2<-ggarrange(fig5d, fig5e, fig5f,
+          labels = c("d","e","f"),
+          ncol = 3, nrow = 1, common.legend=TRUE, legend="right") 
+
+```
+
+#analysis
+```{r}
+m14<-lm(mismatch~Sociality, data=Mismatch_soc_90)
+anova(m14)
+
+m15<-lm(mismatch~Sociality, data=Mismatch_soc_50)
+anova(m15)
+
+m16<-lm(mismatch~Sociality, data=Mismatch_soc_33)
+anova(m16)
+```
+
+
+3) NESTING BEHAVIOR
+  g) 33% temporal distance
+```{r}
+# NESTING: 33% temporal distance
+  #klepto
+    #protein
+    P_33_soc_1 <- lapply(Model_Protein_a, function(x){
+      getEstimates(x, .33)}) #estimates from protein model
+    P_33_soc_1 <-bind_rows(P_33_soc_1, .id = "Site")
+    #bees
+    B_33_soc_1 <- lapply(Model_Bee_a, function(x){
+     getEstimates(x, .33)}) #estimated from bee model
+    B_33_soc_1 <-bind_rows(B_33_soc_1, .id = "Site")
+    #calculate mismatch
+    mismatch33_soc_1<-data.frame(Site=c(1, 2, 3, 4, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33_1=(P_33_soc_1$x-B_33_soc_1$x)) #calculate mismatch
+  #above
+    P_33_soc_2 <- lapply(Model_Protein_b, function(x){
+      getEstimates(x, .33)}) #estimates from protein model
+    P_33_soc_2 <-bind_rows(P_33_soc_2, .id = "Site")
+    #bees
+    B_33_soc_2 <- lapply(Model_Bee_b, function(x){
+     getEstimates(x, .33)}) #estimated from bee model
+    B_33_soc_2 <-bind_rows(B_33_soc_2, .id = "Site")
+    #calculate mismatch
+    mismatch33_soc_2<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33_2=(P_33_soc_2$x-B_33_soc_2$x)) #calculate mismatch
+  #below
+    P_33_soc_3 <- lapply(Model_Protein_c, function(x){
+      getEstimates(x, .33)}) #estimates from protein model
+    P_33_soc_3 <-bind_rows(P_33_soc_3, .id = "Site")
+    #bees
+    B_33_soc_3 <- lapply(Model_Bee_c, function(x){
+     getEstimates(x, .33)}) #estimated from bee model
+    B_33_soc_3 <-bind_rows(B_33_soc_3, .id = "Site")
+    #calculate mismatch
+    mismatch33_soc_3<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33_3=(P_33_soc_3$x-B_33_soc_3$x)) #calculate mismatch
+   #both
+    P_33_soc_4 <- lapply(Model_Protein_d, function(x){
+      getEstimates(x, .33)}) #estimates from protein model
+    P_33_soc_4 <-bind_rows(P_33_soc_4, .id = "Site")
+    #bees
+    B_33_soc_4 <- lapply(Model_Bee_d, function(x){
+     getEstimates(x, .33)}) #estimated from bee model
+    B_33_soc_4 <-bind_rows(B_33_soc_4, .id = "Site")
+    #calculate mismatch
+    mismatch33_soc_4<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch33_4=(P_33_soc_4$x-B_33_soc_4$x)) #calculate mismatch
+    
+   #combine data 
+  Mismatch_soc_33 <- inner_join(mismatch33_soc_1, mismatch33_soc_2, by = c("Site","Size"))  
+  Mismatch_soc_33 <- inner_join(Mismatch_soc_33, mismatch33_soc_3, by = c("Site","Size"))
+  Mismatch_soc_33 <- inner_join(Mismatch_soc_33, mismatch33_soc_4, by = c("Site","Size"))
+  #rename columns
+  Mismatch_soc_33 <- rename(Mismatch_soc_33, c(Klepto=Mismatch33_1, Above=Mismatch33_2, Below=Mismatch33_3, Both=Mismatch33_4))
+  #wide to long format
+  Mismatch_soc_33 = gather(Mismatch_soc_33, Nesting, mismatch, Klepto:Both, factor_key=TRUE)
+
+# box plot with ANOVA tests/Tukey HSD
+# 33% mismatch
+model<- aov(Mismatch_soc_33$mismatch ~ Mismatch_soc_33$Nesting )
+TukeyHSD(model, conf.level=.95)
+
+fig5g<- ggplot(Mismatch_soc_33, aes(x=Nesting, y=mismatch, fill=Nesting)) +
+  geom_boxplot(outlier.shape = NA, aes(fill=Nesting))+ 
+  ylab("33% Temporal distance (days)")+
+   xlab(element_blank())+
+  geom_hline(yintercept = 0, linetype=2) +
+  theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
+  stat_summary(geom = 'text', label = c("a","a, c","b, c","b, c"), fun = max, hjust=1, vjust=-0.3) + 
+  scale_fill_manual(values=cbPalette)   
+    
+
+```
+h) 50% temporal distance
+```{r}
+# NESTING BEHAVIOR: 50% temporal distance
+  #klepto
+    #protein
+    P_50_soc_1 <- lapply(Model_Protein_a, function(x){
+      getEstimates(x, .5)}) #estimates from protein model
+    P_50_soc_1 <-bind_rows(P_50_soc_1, .id = "Site")
+    #bees
+    B_50_soc_1 <- lapply(Model_Bee_a, function(x){
+     getEstimates(x, .5)}) #estimated from bee model
+    B_50_soc_1 <-bind_rows(B_50_soc_1, .id = "Site")
+    #calculate mismatch
+    mismatch50_soc_1<-data.frame(Site=c(1, 2, 3, 4, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_1=(P_50_soc_1$x-B_50_soc_1$x)) #calculate mismatch
+  #above
+    P_50_soc_2 <- lapply(Model_Protein_b, function(x){
+      getEstimates(x, .5)}) #estimates from protein model
+    P_50_soc_2 <-bind_rows(P_50_soc_2, .id = "Site")
+    #bees
+    B_50_soc_2 <- lapply(Model_Bee_b, function(x){
+     getEstimates(x, .5)}) #estimated from bee model
+    B_50_soc_2 <-bind_rows(B_50_soc_2, .id = "Site")
+    #calculate mismatch
+    mismatch50_soc_2<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_2=(P_50_soc_2$x-B_50_soc_2$x)) #calculate mismatch
+  #below
+    P_50_soc_3 <- lapply(Model_Protein_c, function(x){
+      getEstimates(x, .5)}) #estimates from protein model
+    P_50_soc_3 <-bind_rows(P_50_soc_3, .id = "Site")
+    #bees
+    B_50_soc_3 <- lapply(Model_Bee_c, function(x){
+     getEstimates(x, .5)}) #estimated from bee model
+    B_50_soc_3 <-bind_rows(B_50_soc_3, .id = "Site")
+    #calculate mismatch
+    mismatch50_soc_3<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_3=(P_50_soc_3$x-B_50_soc_3$x)) #calculate mismatch
+   #both
+    P_50_soc_4 <- lapply(Model_Protein_d, function(x){
+      getEstimates(x, .5)}) #estimates from protein model
+    P_50_soc_4 <-bind_rows(P_50_soc_4, .id = "Site")
+    #bees
+    B_50_soc_4 <- lapply(Model_Bee_d, function(x){
+     getEstimates(x, .5)}) #estimated from bee model
+    B_50_soc_4 <-bind_rows(B_50_soc_4, .id = "Site")
+    #calculate mismatch
+    mismatch50_soc_4<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch50_4=(P_50_soc_4$x-B_50_soc_4$x)) #calculate mismatch
+    
+   #combine data 
+  Mismatch_soc_50 <- inner_join(mismatch50_soc_1, mismatch50_soc_2, by = c("Site","Size"))  
+  Mismatch_soc_50 <- inner_join(Mismatch_soc_50, mismatch50_soc_3, by = c("Site","Size"))
+  Mismatch_soc_50 <- inner_join(Mismatch_soc_50, mismatch50_soc_4, by = c("Site","Size"))
+  #rename columns
+  Mismatch_soc_50 <- rename(Mismatch_soc_50, c(Klepto=Mismatch50_1, Above=Mismatch50_2, Below=Mismatch50_3, Both=Mismatch50_4))
+  #wide to long format
+  Mismatch_soc_50 = gather(Mismatch_soc_50, Nesting, mismatch, Klepto:Both, factor_key=TRUE)
+
+# box plot with ANOVA tests/Tukey HSD
+# 50% mismatch
+model<- aov(Mismatch_soc_50$mismatch ~ Mismatch_soc_50$Nesting )
+TukeyHSD(model, conf.level=.95)
+
+fig5h<- ggplot(Mismatch_soc_50, aes(x=Nesting, y=mismatch, fill=Nesting)) +
+  geom_boxplot(outlier.shape = NA, aes(fill=Nesting))+ 
+  ylab("50% Temporal distance (days)")+
+   xlab(element_blank())+
+  geom_hline(yintercept = 0, linetype=2) +
+  theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
+  stat_summary(geom = 'text', label = c("a","a, c","b, c","a, c"), fun = max, hjust=1, vjust=-0.3) + 
+  scale_fill_manual(values=cbPalette)   
+    
+
+```
+
+i) 90% temporal distance
+```{r}
+# NESTING BEHAVIOR: 90% temporal distance
+  #klepto
+    #protein
+    P_90_soc_1 <- lapply(Model_Protein_a, function(x){
+      getEstimates(x, .9)}) #estimates from protein model
+    P_90_soc_1 <-bind_rows(P_90_soc_1, .id = "Site")
+    #bees
+    B_90_soc_1 <- lapply(Model_Bee_a, function(x){
+     getEstimates(x, .9)}) #estimated from bee model
+    B_90_soc_1 <-bind_rows(B_90_soc_1, .id = "Site")
+    #calculate mismatch
+    mismatch90_soc_1<-data.frame(Site=c(1, 2, 3, 4, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_1=(P_90_soc_1$x-B_90_soc_1$x)) #calculate mismatch
+  #above
+    P_90_soc_2 <- lapply(Model_Protein_b, function(x){
+      getEstimates(x, .9)}) #estimates from protein model
+    P_90_soc_2 <-bind_rows(P_90_soc_2, .id = "Site")
+    #bees
+    B_90_soc_2 <- lapply(Model_Bee_b, function(x){
+     getEstimates(x, .9)}) #estimated from bee model
+    B_90_soc_2 <-bind_rows(B_90_soc_2, .id = "Site")
+    #calculate mismatch
+    mismatch90_soc_2<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_2=(P_90_soc_2$x-B_90_soc_2$x)) #calculate mismatch
+  #below
+    P_90_soc_3 <- lapply(Model_Protein_c, function(x){
+      getEstimates(x, .9)}) #estimates from protein model
+    P_90_soc_3 <-bind_rows(P_90_soc_3, .id = "Site")
+    #bees
+    B_90_soc_3 <- lapply(Model_Bee_c, function(x){
+     getEstimates(x, .9)}) #estimated from bee model
+    B_90_soc_3 <-bind_rows(B_90_soc_3, .id = "Site")
+    #calculate mismatch
+    mismatch90_soc_3<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_3=(P_90_soc_3$x-B_90_soc_3$x)) #calculate mismatch
+   #both
+    P_90_soc_4 <- lapply(Model_Protein_d, function(x){
+      getEstimates(x, .9)}) #estimates from protein model
+    P_90_soc_4 <-bind_rows(P_90_soc_4, .id = "Site")
+    #bees
+    B_90_soc_4 <- lapply(Model_Bee_d, function(x){
+     getEstimates(x, .9)}) #estimated from bee model
+    B_90_soc_4 <-bind_rows(B_90_soc_4, .id = "Site")
+    #calculate mismatch
+    mismatch90_soc_4<-data.frame(Site=c(1, 2, 3, 4, 5, 6, 7, 8), #site numbers
+           Size=c(0.44, 0.55, 2.96, 1, 0.83, 0.79, 0.45, 0.16), #size of site (ha), extracted from "SiteInformation file"
+           Mismatch90_4=(P_90_soc_4$x-B_90_soc_4$x)) #calculate mismatch
+    
+   #combine data 
+  Mismatch_soc_90 <- inner_join(mismatch90_soc_1, mismatch90_soc_2, by = c("Site","Size"))  
+  Mismatch_soc_90 <- inner_join(Mismatch_soc_90, mismatch90_soc_3, by = c("Site","Size"))
+  Mismatch_soc_90 <- inner_join(Mismatch_soc_90, mismatch90_soc_4, by = c("Site","Size"))
+  #rename columns
+  Mismatch_soc_90 <- rename(Mismatch_soc_90, c(Klepto=Mismatch90_1, Above=Mismatch90_2, Below=Mismatch90_3, Both=Mismatch90_4))
+  #wide to long format
+  Mismatch_soc_90 = gather(Mismatch_soc_90, Nesting, mismatch, Klepto:Both, factor_key=TRUE)
+
+# box plot with ANOVA tests/Tukey HSD
+# 90% mismatch
+model<- aov(Mismatch_soc_90$mismatch ~ Mismatch_soc_90$Nesting )
+TukeyHSD(model, conf.level=.95)
+
+fig5i<- ggplot(Mismatch_soc_90, aes(x=Nesting, y=mismatch, fill=Nesting)) +
+  geom_boxplot(outlier.shape = NA, aes(fill=Nesting))+ 
+  ylab("90% Temporal distance (days)")+
+   xlab(element_blank())+
+  geom_hline(yintercept = 0, linetype=2) +
+  theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
+  scale_fill_manual(values=cbPalette)   
+    
+#ALL SOCIALITY
+fig5_3<-ggarrange(fig5g, fig5h, fig5i,
+          labels = c("g","h","i"),
+          ncol = 3, nrow = 1, common.legend=TRUE, legend="right") 
+
+#FIGURE 5
+fig5<-ggarrange(fig5_1, fig5_2, fig5_3,
+          ncol = 1, nrow = 3) 
+
+ggsave("Fig5_800.tiff", width = 10, height = 10, device='tiff', dpi=800)
+
+```
+
+#analysis
+```{r}
+m17<-lm(mismatch~Nesting, data=Mismatch_soc_90)
+anova(m17)
+
+m18<-lm(mismatch~Nesting, data=Mismatch_soc_50)
+anova(m18)
+
+m19<-lm(mismatch~Nesting, data=Mismatch_soc_33)
+anova(m19)
 ```
