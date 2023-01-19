@@ -564,18 +564,18 @@ beesize_time <- Bees3 %>%
   group_by(Sample, BodySize) %>% 
   summarize(IntTotal = length(unique(ID)))
 
-beesize_time$Date <- c("May 21", "May 21", "May 21", 
-                       "June 3", "June 3", "June 3", 
-                       "June 18", "June 18", "June 18", 
-                       "July 1", "July 1", "July 1", 
-                       "July 14","July 14","July 14", 
-                       "July 28","July 28","July 28", 
-                       "Aug. 11", "Aug. 11", "Aug. 11", 
-                       "Aug. 21","Aug. 21","Aug. 21", 
-                       "Sept. 12","Sept. 12","Sept. 12")
+beesize_time$Date <- c(141, 141, 141, 
+                       154, 154, 154, 
+                       169, 169, 169,
+                       182, 182, 182,
+                       195, 195, 195,
+                       209, 209, 209,
+                       223, 223, 223,
+                       233, 233, 233,
+                       255, 255, 255)
 
 #visualize
-fig3a<- ggplot(beesize_time, aes(x = as.factor(Date), y = IntTotal, fill = BodySize)) + 
+fig3a<- ggplot(beesize_time, aes(x =as.factor(Date), y = IntTotal, fill = BodySize)) + 
   geom_histogram(stat = "identity", position = "fill") +
   xlab("Sample date") +
   ylab("Percent abundance (%)") +
@@ -624,15 +624,16 @@ beesoc_time <- Bees3 %>%
   group_by(Sample, Sociality) %>% 
   summarize(IntTotal = length(unique(ID)))
 
-beesoc_time$Date <- c("May 21", "May 21", "May 21", "May 21",
-                       "June 3", "June 3", "June 3", "June 3",
-                       "June 18", "June 18", "June 18", "June 18", 
-                       "July 1", "July 1", "July 1", 
-                       "July 14","July 14","July 14", "July 14", 
-                       "July 28","July 28","July 28", "July 28", 
-                       "Aug. 11", "Aug. 11", "Aug. 11", "Aug. 11", 
-                       "Aug. 21","Aug. 21","Aug. 21",
-                       "Sept. 12","Sept. 12","Sept. 12","Sept. 12")
+
+beesoc_time$Date <- c(141, 141, 141, 141, 
+                       154, 154, 154, 154,
+                       169, 169, 169, 169,
+                       182, 182, 182,
+                       195, 195, 195, 195,
+                       209, 209, 209, 209,
+                       223, 223, 223, 223,
+                       233, 233, 233,
+                       255, 255, 255, 255)
 
 #visualize
 fig3c<- ggplot(beesoc_time, aes(x = as.factor(Date), y = IntTotal, fill = Sociality)) + 
@@ -685,15 +686,15 @@ beenest_time <- Bees3 %>%
   group_by(Sample, Nest1) %>% 
   summarize(IntTotal = length(unique(ID)))
 
-beenest_time$Date <- c("May 21", "May 21", "May 21", 
-                       "June 3", "June 3", "June 3", "June 3",
-                       "June 18", "June 18", "June 18", "June 18", 
-                       "July 1", "July 1", "July 1", 
-                       "July 14","July 14","July 14", "July 14", 
-                       "July 28","July 28","July 28", "July 28", 
-                       "Aug. 11", "Aug. 11", "Aug. 11", "Aug. 11", 
-                       "Aug. 21","Aug. 21",
-                       "Sept. 12","Sept. 12","Sept. 12","Sept. 12")
+beenest_time$Date <- c(141, 141, 141,  
+                       154, 154, 154, 154,
+                       169, 169, 169, 169,
+                       182, 182, 182,
+                       195, 195, 195, 195,
+                       209, 209, 209, 209,
+                       223, 223, 223, 223,
+                       233, 233,
+                       255, 255, 255, 255)
 
 #visualize
 fig3e<- ggplot(beenest_time, aes(x = as.factor(Date), y = IntTotal, fill = factor(Nest1, levels=c("klepto", "above", "below", "both")))) + 
@@ -1245,7 +1246,7 @@ Create logistic regression models using the `nplr` package.
 
 https://cran.r-project.org/web/packages/nplr/vignettes/nplr.pdf
 
-```{r}
+```{r, warning = FALSE}
 
 ##Split data by site 
 siteList <- split(BeeProteinSum_edit, BeeProteinSum_edit$Site) #split by site
@@ -1260,36 +1261,52 @@ Model_Bee <- lapply(siteList, function(tmp){
   })
 
 
-## Visualization (S5)
-Site1<- overlay(c(Model_Protein$`1`,Model_Bee$`1`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+## Visualization (S6)
+tiff(file = "Site1.tiff", width = 5600, height = 5600, units = "px", res = 800)
+
+Site1<- overlay(c(Model_Protein$`1`,Model_Bee$`1`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 6,
                 xlim = c(140, 256),
                 ylim = c(0, 1))
 
-Site2<- overlay(c(Model_Protein$`2`,Model_Bee$`2`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+tiff(file = "Site2.tiff", width = 5600, height = 5600, units = "px", res = 800)
+
+Site2<- overlay(c(Model_Protein$`2`,Model_Bee$`2`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 6,
                 xlim = c(140, 256),
                 ylim = c(0, 1))
 
-Site3<- overlay(c(Model_Protein$`3`,Model_Bee$`3`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+tiff(file = "Site3.tiff", width = 5600, height = 5600, units = "px", res = 800)
+
+Site3<- overlay(c(Model_Protein$`3`,Model_Bee$`3`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 6,
                 xlim = c(140, 256),
                 ylim = c(0, 1))
 
-Site4<- overlay(c(Model_Protein$`4`,Model_Bee$`4`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+tiff(file = "Site4.tiff", width = 5600, height = 5600, units = "px", res = 800)
+
+Site4<- overlay(c(Model_Protein$`4`,Model_Bee$`4`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 6,
                 xlim = c(140, 256),
                 ylim = c(0, 1))
 
-Site5<- overlay(c(Model_Protein$`5`,Model_Bee$`5`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+tiff(file = "Site5.tiff", width = 5600, height = 5600, units = "px", res = 800)
+
+Site5<- overlay(c(Model_Protein$`5`,Model_Bee$`5`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 6,
                 xlim = c(140, 256),
                 ylim = c(0, 1))
 
-Site6<- overlay(c(Model_Protein$`6`,Model_Bee$`6`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+tiff(file = "Site6.tiff", width = 5600, height = 5600, units = "px", res = 800)
+
+Site6<- overlay(c(Model_Protein$`6`,Model_Bee$`6`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 6,
                 xlim = c(140, 256),
                 ylim = c(0, 1))
 
-Site7<- overlay(c(Model_Protein$`7`,Model_Bee$`7`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+tiff(file = "Site7.tiff", width = 5600, height = 5600, units = "px", res = 800)
+
+Site7<- overlay(c(Model_Protein$`7`,Model_Bee$`7`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 6,
                 xlim = c(140, 256),
                 ylim = c(0, 1))
 
-Site8<- overlay(c(Model_Protein$`8`,Model_Bee$`8`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 2,
+tiff(file = "Site8.tiff", width = 5600, height = 5600, units = "px", res = 800)
+
+Site8<- overlay(c(Model_Protein$`8`,Model_Bee$`8`), showLegend=FALSE, xlab = "Day", ylab = "Accumulation", Cols=c("#E69F00", "#009E73"),cex.main=1.5, lwd = 6,
                 xlim = c(140, 256),
                 ylim = c(0, 1))
 
@@ -1603,7 +1620,7 @@ Fig4A<- ggplot(acc, aes(x = Day, y = acc, color = Trend, linetype = Trend)) +
                   method.args = list(family=binomial)) +
   ylab("Accumulation (%)") +
   scale_linetype_manual(labels = c('Large', 'Mid-sized', 'Small','Site Protein'), values=c(1, 1, 1, 4)) +
-  scale_colour_manual(labels = c('Large', 'Mid-sized', 'Small','Site Protein'), values=c("#999999", "#E69F00", "#56B4E9", "#F0E442")) +
+  scale_colour_manual(labels = c('Large', 'Mid-sized', 'Small','Site Protein'), values=c("#999999", "#E69F00", "#56B4E9", "#000000")) +
   theme_classic()
 
 ```
@@ -1801,7 +1818,8 @@ Fig4B<- ggplot(acc, aes(x = Day, y = acc, color = Trend, linetype = Trend)) +
                   method.args = list(family=binomial)) +
   ylab("Accumulation (%)") +
   scale_linetype_manual(labels = c('Klepto', 'Multiple', 'Social', 'Solitary', 'Site Protein'), values=c(1, 1, 1, 1, 4)) +
-  scale_colour_manual(labels = c('Klepto', 'Multiple', 'Social', 'Solitary', 'Site Protein'), values=cbPalette) +
+  scale_colour_manual(labels = c('Klepto', 'Multiple', 'Social', 'Solitary', 'Site Protein'), 
+                      values=c("#999999", "#E69F00", "#56B4E9", "#009E73", "#000000")) +
   theme_classic()
 
 ```
@@ -1992,7 +2010,7 @@ Fig4C<- ggplot(acc, aes(x = Day, y = acc, color = Trend, linetype = Trend)) +
                   method.args = list(family=binomial)) +
   ylab("Accumulation (%)") +
   scale_linetype_manual(labels = c('Klepto', 'Above', 'Below', 'Both', 'Site Protein'), values=c(1, 1, 1, 1, 4)) +
-  scale_colour_manual(labels = c('Klepto', 'Above', 'Below', 'Both', 'Site Protein'), values=cbPalette) +
+  scale_colour_manual(labels = c('Klepto', 'Above', 'Below', 'Both', 'Site Protein'), values=c("#999999", "#E69F00", "#56B4E9", "#009E73", "#000000")) +
   theme_classic()
 
 fig4<-ggarrange(Fig4A, Fig4B, Fig4C,
