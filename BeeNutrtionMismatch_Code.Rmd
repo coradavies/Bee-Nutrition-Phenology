@@ -844,7 +844,7 @@ index2$Names[1:5] = c("CADU4", "HEVI4", "LUAR3", "GECA3", "CAGU")
 Fig6 <- index2 %>%
   ggtern(aes(x = concentration, y = IntTotal, z = IntRich, label=Names)) +
   geom_point(size=2, aes(fill=Status, color=Status)) +
-  geom_point(data=index2[index2$group == "important",], size=4, shape=18,
+  geom_point(data=index2[index2$group == "important",], size=4,
              aes(color=Status)) +
   annotate(geom = 'text',
            x = c(0.228, 0.483, 0.145, 0.114, 0.161),
@@ -2025,8 +2025,7 @@ ggsave("Fig4_800.tiff", width = 9, height = 15, device='tiff', dpi=800)
 
 1) BODY SIZE
   a) 33% temporal distance
-```{r}
-# BODY SIZE: 33% temporal distance
+```{r BODY SIZE: 33% temporal distance}
   #large
     #protein
     P_33_size_l <- lapply(Model_Protein_l, function(x){
@@ -2093,8 +2092,7 @@ fig5a<- ggplot(Mismatch_size_33, aes(x=Bodysize, y=mismatch, fill=Bodysize)) +
 ```
 
  b) 50% temporal distance
-```{r}
-# BODY SIZE: 50% temporal distance
+```{r BODY SIZE: 50% temporal distance}
   #large
     #protein
     P_50_size_l <- lapply(Model_Protein_l, function(x){
@@ -2161,8 +2159,7 @@ fig5b<- ggplot(Mismatch_size_50, aes(x=Bodysize, y=mismatch, fill=Bodysize)) +
 ```
 
  c) 90% temporal distance
-```{r}
-# BODY SIZE: 90% temporal distance
+```{r BODY SIZE: 90% temporal distance}
   #large
     #protein
     P_90_size_l <- lapply(Model_Protein_l, function(x){
@@ -2231,7 +2228,7 @@ fig5_1<-ggarrange(fig5a, fig5b, fig5c,
 ```
 
 #analysis
-```{r}
+```{r Bodysize mismatch models}
 m11<-lm(mismatch~Bodysize, data=Mismatch_size_90)
 anova(m11)
 
@@ -2244,8 +2241,7 @@ anova(m13)
 
 2) SOCIALITY
   d) 33% temporal distance
-```{r}
-# SOCIALITY: 33% temporal distance
+```{r SOCIALITY: 33% temporal distance}
   #klepto
     #protein
     P_33_soc_1 <- lapply(Model_Protein_1, function(x){
@@ -2318,15 +2314,14 @@ fig5d<- ggplot(Mismatch_soc_33, aes(x=Sociality, y=mismatch, fill=Sociality)) +
   theme(axis.text.x=element_blank(),
       axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
-  stat_summary(geom = 'text', label = c("a","a","b, c","a, c"), fun = max, hjust=1, vjust=-0.3) + 
+  stat_summary(geom = 'text', label = c("a","a","bc","ab"), fun = max, hjust=1, vjust=-0.3) + 
   scale_fill_manual(values=cbPalette)   
     
 
 ```
 
  e) 50% temporal distance
-```{r}
-# SOCIALITY: 50% temporal distance
+```{r SOCIALITY: 50% temporal distance}
   #klepto
     #protein
     P_50_soc_1 <- lapply(Model_Protein_1, function(x){
@@ -2399,15 +2394,14 @@ fig5e<- ggplot(Mismatch_soc_50, aes(x=Sociality, y=mismatch, fill=Sociality)) +
   theme(axis.text.x=element_blank(),
       axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
-  stat_summary(geom = 'text', label = c("a","a","b, c","a, c"), fun = max, hjust=1, vjust=-0.3) + 
+  stat_summary(geom = 'text', label = c("a","a","bc","ab"), fun = max, hjust=1, vjust=-0.3) + 
   scale_fill_manual(values=cbPalette)   
     
 
 ```
 
 f) 90% temporal distance
-```{r}
-# SOCIALITY: 90% temporal distance
+```{r SOCIALITY: 90% temporal distance}
   #klepto
     #protein
     P_90_soc_1 <- lapply(Model_Protein_1, function(x){
@@ -2490,7 +2484,7 @@ fig5_2<-ggarrange(fig5d, fig5e, fig5f,
 ```
 
 #analysis
-```{r}
+```{r Sociality mismatch models}
 m14<-lm(mismatch~Sociality, data=Mismatch_soc_90)
 anova(m14)
 
@@ -2504,8 +2498,7 @@ anova(m16)
 
 3) NESTING BEHAVIOR
   g) 33% temporal distance
-```{r}
-# NESTING: 33% temporal distance
+```{r NESTING: 33% temporal distance}
   #klepto
     #protein
     P_33_soc_1 <- lapply(Model_Protein_a, function(x){
@@ -2578,14 +2571,13 @@ fig5g<- ggplot(Mismatch_soc_33, aes(x=Nesting, y=mismatch, fill=Nesting)) +
   theme(axis.text.x=element_blank(),
       axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
-  stat_summary(geom = 'text', label = c("a","a, c","b, c","b, c"), fun = max, hjust=1, vjust=-0.3) + 
+  stat_summary(geom = 'text', label = c("a","ab","b","b"), fun = max, hjust=1, vjust=-0.3) + 
   scale_fill_manual(values=cbPalette)   
     
 
 ```
 h) 50% temporal distance
-```{r}
-# NESTING BEHAVIOR: 50% temporal distance
+```{r NESTING BEHAVIOR: 50% temporal distance}
   #klepto
     #protein
     P_50_soc_1 <- lapply(Model_Protein_a, function(x){
@@ -2658,15 +2650,14 @@ fig5h<- ggplot(Mismatch_soc_50, aes(x=Nesting, y=mismatch, fill=Nesting)) +
   theme(axis.text.x=element_blank(),
       axis.ticks.x=element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_blank(), axis.line = element_line(colour = "black"))+  
-  stat_summary(geom = 'text', label = c("a","a, c","b, c","a, c"), fun = max, hjust=1, vjust=-0.3) + 
+  stat_summary(geom = 'text', label = c("a","ab","b","ab"), fun = max, hjust=1, vjust=-0.3) + 
   scale_fill_manual(values=cbPalette)   
     
 
 ```
 
 i) 90% temporal distance
-```{r}
-# NESTING BEHAVIOR: 90% temporal distance
+```{r NESTING BEHAVIOR: 90% temporal distance}
   #klepto
     #protein
     P_90_soc_1 <- lapply(Model_Protein_a, function(x){
@@ -2755,7 +2746,7 @@ ggsave("Fig5_800.tiff", width = 10, height = 10, device='tiff', dpi=800)
 ```
 
 #analysis
-```{r}
+```{r Nesting mismatch models}
 m17<-lm(mismatch~Nesting, data=Mismatch_soc_90)
 anova(m17)
 
