@@ -8,10 +8,10 @@ Ashmeadiella,small,both,rent,solitary,poly
 Augochlorella,small,above,excavate,social,poly
 Bombus,large,below,rent,social,poly
 Ceratina,small,above,excavate,social,poly
-Coelioxys,mid,klepto,klepto,klepto,klepto
+Coelioxys,mid,both,klepto,klepto,klepto
 Colletes,mid,below,excavate,solitary,multiple
 Dufourea,small,below,excavate,solitary,oligo
-Epeolus,small,klepto,klepto,klepto,klepto
+Epeolus,small,both,klepto,klepto,klepto
 Halictus,small,below,excavate,multiple,poly
 Heriades,small,above,rent,solitary,poly
 Hoplitis,small,above,rent,solitary,poly
@@ -20,7 +20,7 @@ Lasioglossum (Dialictus),small,below,excavate,multiple,poly
 Lasioglossum (Sensu stricto),mid,below,excavate,multiple,poly
 Megachile,large,above,rent,solitary,multiple
 Melissodes,mid,below,excavate,solitary,oligo
-Nomada,mid,klepto,klepto,klepto,klepto
+Nomada,mid,both,klepto,klepto,klepto
 Osmia,mid,above,rent,solitary,multiple
-Sphecodes,small,klepto,klepto,klepto,klepto
+Sphecodes,small,both,klepto,klepto,klepto
 Svastra,large,below,excavate,solitary,oligo
