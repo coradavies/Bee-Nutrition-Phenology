@@ -62,7 +62,7 @@ GenusTraits - contains data of bee genera functional traits
 	Nest1 - nesting location  
 		above = above ground  
 		below = below ground  
-		klepto = kleptoparasitic behavior  
+		both = both above and below ground, including kleptoparasitic behavior  
 	Nest2 - nesting strategy/construction  
 		excavate = excavate  
 		rent = rent  
